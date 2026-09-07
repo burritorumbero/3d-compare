@@ -2,9 +2,10 @@ import { useState, type FormEvent } from 'react'
 import type { CompareApp } from '../app/compare-app.ts'
 import { footEntry } from '../catalog/feet.ts'
 import { humanEntry } from '../catalog/humans.ts'
+import { humanDisplayName } from '../catalog/names.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { selectedFoot } from '../domain/feet-world.ts'
-import { selectedHuman } from '../domain/height-world.ts'
+import { HUMAN_NAME_MAX_LENGTH, selectedHuman } from '../domain/height-world.ts'
 import { formatHeight } from '../domain/measure.ts'
 import { formatShoe, shoeRows } from '../domain/shoe-charts.ts'
 import { FootIcon, PersonIcon, TrashIcon } from './icons.tsx'
@@ -53,6 +54,7 @@ function HeightInspector({
   )
   const [feet, setFeet] = useState(String(initialImperial.feet))
   const [inches, setInches] = useState(String(initialImperial.inches))
+  const [name, setName] = useState(placement?.name ?? '')
   const [error, setError] = useState('')
 
   if (!placement) {
@@ -63,6 +65,7 @@ function HeightInspector({
 
   const entry = humanEntry(placement.catalogId)
   const placementId = placement.id
+  const displayName = humanDisplayName(placement)
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
@@ -86,13 +89,13 @@ function HeightInspector({
       <div className="panel-heading inspector-heading">
         <div>
           <span className="eyebrow">Inspector</span>
-          <h2 id="inspector-title">{entry.label}</h2>
+          <h2 id="inspector-title">{displayName}</h2>
         </div>
         <button
           className="icon-button danger"
           type="button"
-          title={`Remove ${entry.label}`}
-          aria-label={`Remove ${entry.label}`}
+          title={`Remove ${displayName}`}
+          aria-label={`Remove ${displayName}`}
           onClick={() => app.remove(placement.id)}
         >
           <TrashIcon />
@@ -107,9 +110,29 @@ function HeightInspector({
         </span>
         <div>
           <strong>{formatHeight(placement.heightMm, document.heightUnit)}</strong>
-          <small>{entry.subtitle}</small>
+          <small>{entry.label} · {entry.subtitle}</small>
         </div>
       </div>
+      <label className="field name-field">
+        <span>Name</span>
+        <span className="input-with-suffix">
+          <input
+            type="text"
+            maxLength={HUMAN_NAME_MAX_LENGTH}
+            placeholder={entry.label}
+            autoComplete="off"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onBlur={() => app.renameHuman(placementId, name)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                event.currentTarget.blur()
+              }
+            }}
+          />
+        </span>
+      </label>
       <form className="size-form" onSubmit={submit}>
         {document.heightUnit === 'cm' ? (
           <label className="field">

@@ -30,15 +30,23 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 
 ### Height
 
-Add up to 10 textured human models to a calibrated concrete studio. Choose among three female and three male people with different skin tones and outfits. Set each height in feet and inches or centimeters. Everyone stands on one line so perspective does not bias the comparison.
+Add up to 10 textured human models to an open concrete floor. Choose among three female and three male people with different skin tones and outfits. Set each height in feet and inches or centimeters, and give each person a name of your own. Everyone stands on one line so perspective does not bias the comparison.
 
-Use **Orbit** to rotate, pan, and zoom around the lineup. Use **Walk** to look with the pointer and move with W, A, S, and D.
+Drag to orbit, scroll to zoom, and right-drag to pan.
 
 ### Feet
 
-Place pairs of female and male feet, cut at mid-shin, on a centimeter table. Choose an adult US or EU shoe size. 3D Compare maps the size to foot length before scaling the pair.
+Place pairs of female and male feet, cut at mid-shin, on a centimeter table. Choose an adult US or EU shoe size: US women's 4 to 20, US men's 4 to 22, or EU 34 to 58. 3D Compare maps the size to foot length before scaling the pair.
 
 Use **Orbit** to rotate around the table. Use **Inspect** for table-plane panning and close zoom.
+
+### Stage controls
+
+Tap or click a model to show its info block; only the selected model shows one. **Frame** centers the camera on the selection and **Reset** returns to the default view. **Full screen** expands the 3D stage to the whole screen (Esc leaves it). **Share** copies a link that reproduces the current lineup, names, sizes, and units for anyone who opens it. The stage sizes itself to the device: it fills the workspace on laptops and takes a fixed share of the screen on tablets and phones.
+
+### Share links
+
+A share link carries the scene in its query string, for example `?mode=height&unit=cm&shoe=US&h=female-tan-dress:1700:Ari&f=foot-male:272`. Opening one replaces the saved workspace with the shared lineup and then clears the query from the address bar.
 
 ## 3D models
 
@@ -50,7 +58,7 @@ Models load on demand and are cached per file, so ten copies of one person downl
 
 ## Local data only
 
-The app has no backend, account, Go service, or AWS resource. The static catalogs and models ship with the client. Your two comparison lineups persist in browser `localStorage`.
+The app has no backend, account, Go service, or AWS resource. The static catalogs and models ship with the client. Your two comparison lineups persist in browser `localStorage`, and share links carry a scene between browsers without a server.
 
 ## Verify a change
 

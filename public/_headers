@@ -1,0 +1,12 @@
+# Read by Cloudflare Pages and Netlify. Ignored by hosts that do not support it.
+
+# Vite fingerprints these filenames, so they can be cached forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Model filenames are stable, so cache for a day and revalidate after that.
+/models/*
+  Cache-Control: public, max-age=86400, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

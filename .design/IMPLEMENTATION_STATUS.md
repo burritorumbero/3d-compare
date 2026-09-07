@@ -4,14 +4,14 @@
 
 3D Compare is a client-only React and R3F app with two persistent comparison worlds.
 
-- Height mode has six textured human models (three female, three male, with pale, tan, and dark skin tones and distinct outfits), a 10-person cap, metric and imperial height editing, orbit controls, pointer-lock walk controls, a meter grid, and a 0 to 220 cm wall ruler.
-- Feet mode has textured female and male pairs of feet cut at mid-shin, adult US and EU sizing, orbit controls, table-plane inspect controls, and a centimeter table grid.
-- Both modes support add, select, resize, frame, reset, remove, responsive layouts, and `localStorage` persistence.
+- Height mode has six textured human models (three female, three male, with pale, tan, and dark skin tones and distinct outfits), a 10-person cap, custom names, metric and imperial height editing, orbit controls, a meter grid on an open floor, and a free-standing 0 to 220 cm ruler post.
+- Feet mode has textured female and male pairs of feet cut at mid-shin, adult US sizing to women's 20 and men's 22 and EU sizing to 58, orbit controls, table-plane inspect controls, and a centimeter table grid.
+- Both modes support add, select, resize, frame, reset, remove, full-screen stage, share links, a per-device stage size, and `localStorage` persistence. Only the selected model shows its info block.
 
 ## Files owned
 
 - `src/domain/**` owns branded millimeters, height and shoe specs, dual worlds, layout, navigation contracts, results, and persistence parsing.
-- `src/app/**` owns `createCompareApp`, subscriptions, command handling, persistence hookup, and React store hooks.
+- `src/app/**` owns `createCompareApp`, subscriptions, command handling, persistence hookup, the share-link codec, and React store hooks.
 - `src/catalog/humans.ts` owns the six human entries and their authored statures.
 - `src/catalog/feet.ts` owns the two feet entries, their authored sole lengths, and default sizes.
 - `public/models/**` owns the eight CC0 GLB files, the pack manifest, and the asset licenses.
@@ -65,3 +65,7 @@ Removed shadow-map dependency (PCFSoft deprecation + soft-GL black composite). H
 ## Follow-up: textured models (2026-09-07)
 
 Replaced the procedural stand-ins with the eight-model CC0 GLB pack (MakeHuman Community adaptations). Humans scale uniformly from the Body mesh stature (sole to skull top, hair excluded); feet pairs scale from the sole length of each foot, with the authored stance narrowed to a 5 cm gap so pairs stay compact. Pointer events raycast an invisible hit box per figure instead of the 80k-triangle meshes. Both stages use the Three.js procedural RoomEnvironment for image-based lighting, neutral tone mapping, and a shared blob shadow. The height lineup is a single line at 1.2 m spacing on a 16 m floor; the feet table is 2.4 m wide with two heel lines. `scripts/verify-models.mjs` proves catalog sizes against the GLB vertex data. Saved lineups from the procedural catalog fail validation and start empty.
+
+## Follow-up: stage controls and sharing (2026-09-07)
+
+Height mode lost its walk rig and walls: it now orbits over an open floor with the ruler post as the only fixture. Info blocks render only for the selected figure, so at most one is visible and a tap reveals it. People can be renamed from the inspector (`renameHuman`, 40 characters, blank restores the catalog label). Shoe charts extend to US women's 20 (344 mm), US men's 22 (374 mm), and EU 58 (376 mm), with `FOOT_LENGTH_MM_MAX` at 380 and a 2.6 by 1.4 m table. The stage gains full screen (Fullscreen API with a fixed-position fallback for iPhone Safari) and a Share button that copies a query-string link (`src/app/share.ts`) reproducing both worlds; `main.tsx` imports such links and clears the address bar. Stage height follows the viewport below 980 px.

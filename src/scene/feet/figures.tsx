@@ -123,16 +123,16 @@ function FootModel({ app, draw }: FigureProps) {
           />
         </mesh>
       )}
-      <Html
-        center
-        position={[center.x, size.y + 0.08, center.z]}
-        distanceFactor={2.2}
-        style={{ pointerEvents: 'none' }}
-      >
-        <span className={draw.selected ? 'scene-label feet-label is-selected' : 'scene-label feet-label'}>
-          {draw.label}
-        </span>
-      </Html>
+      {draw.selected && (
+        <Html
+          center
+          position={[center.x, size.y + 0.08, center.z]}
+          distanceFactor={2.2}
+          style={{ pointerEvents: 'none' }}
+        >
+          <span className="scene-label feet-label is-selected">{draw.label}</span>
+        </Html>
+      )}
     </>
   )
 }

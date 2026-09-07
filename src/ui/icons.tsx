@@ -47,11 +47,27 @@ export function OrbitIcon() {
   )
 }
 
-export function WalkIcon() {
+export function ShareIcon() {
   return (
     <Glyph>
-      <circle cx="13.3" cy="4.2" r="2" />
-      <path d="m10.6 21 1.1-6.1-2.4-2.4-2 3.1M16.7 21l-2.5-5.2.6-5.2 2.8 2.4 2.2.2M7.7 9.7l3.3-2 3.8 2.9" />
+      <path d="M10.2 13.8a3.6 3.6 0 0 0 5.1 0l3-3a3.6 3.6 0 0 0-5.1-5.1l-1.2 1.2" />
+      <path d="M13.8 10.2a3.6 3.6 0 0 0-5.1 0l-3 3a3.6 3.6 0 0 0 5.1 5.1l1.2-1.2" />
+    </Glyph>
+  )
+}
+
+export function FullscreenIcon() {
+  return (
+    <Glyph>
+      <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+    </Glyph>
+  )
+}
+
+export function ExitFullscreenIcon() {
+  return (
+    <Glyph>
+      <path d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5" />
     </Glyph>
   )
 }

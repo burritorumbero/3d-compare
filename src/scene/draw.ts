@@ -1,5 +1,6 @@
 import { footEntry } from '../catalog/feet.ts'
 import { humanEntry } from '../catalog/humans.ts'
+import { humanDisplayName } from '../catalog/names.ts'
 import type { FootCatalogId, HumanCatalogId, ModelAsset } from '../domain/catalog.ts'
 import type { PlacedFoot } from '../domain/feet-world.ts'
 import type { PlacedHuman } from '../domain/height-world.ts'
@@ -51,7 +52,7 @@ export function toHumanDraw(
     position: [placement.pose.x, 0, placement.pose.z],
     yaw: placement.pose.yaw,
     selected: placement.id === selectedId,
-    label: `${entry.label} · ${formatHeight(placement.heightMm, unit)}`,
+    label: `${humanDisplayName(placement)} · ${formatHeight(placement.heightMm, unit)}`,
   }
 }
 

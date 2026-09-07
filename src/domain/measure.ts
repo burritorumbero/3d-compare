@@ -17,7 +17,7 @@ export type ParseResult<T> =
 export const HEIGHT_MM_MIN = 900
 export const HEIGHT_MM_MAX = 2300
 export const FOOT_LENGTH_MM_MIN = 200
-export const FOOT_LENGTH_MM_MAX = 340
+export const FOOT_LENGTH_MM_MAX = 380
 
 export function heightMm(value: number): HeightMm {
   if (!Number.isFinite(value) || value <= 0) {

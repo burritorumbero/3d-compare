@@ -1,11 +1,13 @@
 import type { CompareApp } from '../app/compare-app.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import {
+  ExitFullscreenIcon,
   FrameIcon,
+  FullscreenIcon,
   InspectIcon,
   OrbitIcon,
   ResetIcon,
-  WalkIcon,
+  ShareIcon,
 } from './icons.tsx'
 
 export function NavToggles({
@@ -15,29 +17,9 @@ export function NavToggles({
   app: CompareApp
   document: CompareDocument
 }) {
+  // Height mode only orbits, so it has no navigation toggle.
   if (document.mode === 'height') {
-    return (
-      <div className="compact-toggle nav-toggle" aria-label="Height navigation">
-        <button
-          type="button"
-          className={document.height.navMode === 'orbit' ? 'is-active' : ''}
-          aria-pressed={document.height.navMode === 'orbit'}
-          onClick={() => app.setHeightNavMode('orbit')}
-        >
-          <OrbitIcon />
-          Orbit
-        </button>
-        <button
-          type="button"
-          className={document.height.navMode === 'walk' ? 'is-active' : ''}
-          aria-pressed={document.height.navMode === 'walk'}
-          onClick={() => app.setHeightNavMode('walk')}
-        >
-          <WalkIcon />
-          Walk
-        </button>
-      </div>
-    )
+    return null
   }
 
   return (
@@ -64,7 +46,17 @@ export function NavToggles({
   )
 }
 
-export function ViewActions({ app }: { app: CompareApp }) {
+export function ViewActions({
+  app,
+  fullscreen,
+  onShare,
+  onToggleFullscreen,
+}: {
+  app: CompareApp
+  fullscreen: boolean
+  onShare(): void
+  onToggleFullscreen(): void
+}) {
   return (
     <div className="view-actions">
       <button type="button" onClick={() => app.frameSelection()} title="Frame selection">
@@ -74,6 +66,20 @@ export function ViewActions({ app }: { app: CompareApp }) {
       <button type="button" onClick={() => app.resetView()} title="Reset view">
         <ResetIcon />
         <span>Reset</span>
+      </button>
+      <button type="button" onClick={onShare} title="Share link">
+        <ShareIcon />
+        <span>Share</span>
+      </button>
+      <button
+        type="button"
+        className={fullscreen ? 'is-active' : ''}
+        aria-pressed={fullscreen}
+        onClick={onToggleFullscreen}
+        title={fullscreen ? 'Exit full screen' : 'Full screen'}
+      >
+        {fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+        <span>{fullscreen ? 'Exit' : 'Full screen'}</span>
       </button>
     </div>
   )

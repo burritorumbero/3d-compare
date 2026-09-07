@@ -3,9 +3,9 @@ import type { ReactNode } from 'react'
 import { FOOT_ROW_OFFSET_M } from '../../domain/layout.ts'
 import { StudioEnvironment } from '../environment.tsx'
 
-const TABLE_WIDTH_M = 2.4
-const TABLE_DEPTH_M = 1.2
-const rulerLabels = Array.from({ length: 21 }, (_, index) => (index - 10) * 10)
+const TABLE_WIDTH_M = 2.6
+const TABLE_DEPTH_M = 1.4
+const rulerLabels = Array.from({ length: 25 }, (_, index) => (index - 12) * 10)
 const grainLines = Array.from({ length: 9 }, (_, index) => -0.48 + index * 0.12)
 const heelLines = [-FOOT_ROW_OFFSET_M, FOOT_ROW_OFFSET_M]
 

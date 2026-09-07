@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useProgress } from '@react-three/drei'
+import { useEffect, useRef, useState } from 'react'
 import type { CompareApp } from '../app/compare-app.ts'
+import { shareUrl } from '../app/share.ts'
 import { useCompare } from '../app/use-compare.ts'
 import { FEET_CATALOG } from '../catalog/feet.ts'
 import { HUMAN_CATALOG } from '../catalog/humans.ts'
@@ -14,10 +16,16 @@ import { SceneErrorBoundary } from './scene-error-boundary.tsx'
 import { UnitToggles } from './unit-toggles.tsx'
 import './app.css'
 
+/** 'native' uses the Fullscreen API; 'fallback' pins the stage over the page where that API is missing. */
+type FullscreenState = 'off' | 'native' | 'fallback'
+
 export function App({ app }: { app: CompareApp }) {
   const document = useCompare(app)
   const [notice, setNotice] = useState('')
   const [sceneReady, setSceneReady] = useState(false)
+  const [fullscreen, setFullscreen] = useState<FullscreenState>('off')
+  const stageRef = useRef<HTMLElement>(null)
+  const loading = useProgress((state) => state.active)
   const activeCount =
     document.mode === 'height'
       ? document.height.placements.length
@@ -32,8 +40,98 @@ export function App({ app }: { app: CompareApp }) {
     return () => window.clearTimeout(timeout)
   }, [notice])
 
+  useEffect(() => {
+    const page = window.document
+    function sync(): void {
+      setFullscreen((current) => {
+        if (page.fullscreenElement === stageRef.current) {
+          return 'native'
+        }
+
+        return current === 'native' ? 'off' : current
+      })
+    }
+
+    page.addEventListener('fullscreenchange', sync)
+    return () => page.removeEventListener('fullscreenchange', sync)
+  }, [])
+
+  useEffect(() => {
+    if (fullscreen !== 'fallback') {
+      return
+    }
+
+    function leaveOnEscape(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setFullscreen('off')
+      }
+    }
+
+    window.addEventListener('keydown', leaveOnEscape)
+    return () => window.removeEventListener('keydown', leaveOnEscape)
+  }, [fullscreen])
+
+  async function toggleFullscreen(): Promise<void> {
+    const page = window.document
+    if (fullscreen === 'native') {
+      try {
+        await page.exitFullscreen()
+      } catch {
+        // The browser already left full screen; the change event keeps state in sync.
+      }
+      setFullscreen('off')
+      return
+    }
+
+    if (fullscreen === 'fallback') {
+      setFullscreen('off')
+      return
+    }
+
+    const stage = stageRef.current
+    if (stage && typeof stage.requestFullscreen === 'function') {
+      try {
+        await stage.requestFullscreen({ navigationUI: 'hide' })
+        setFullscreen('native')
+        return
+      } catch {
+        // Some browsers (iPhone Safari among them) refuse; fall through to the CSS mode.
+      }
+    }
+
+    setFullscreen('fallback')
+  }
+
+  async function share(): Promise<void> {
+    const url = shareUrl(document, `${window.location.origin}${window.location.pathname}`)
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+    if (coarsePointer && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: '3D Compare lineup', url })
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url)
+      setNotice('Link copied. Anyone who opens it sees this lineup.')
+    } catch {
+      window.prompt('Copy this link to share the lineup:', url)
+    }
+  }
+
   const sceneName = document.mode === 'height' ? 'Concrete studio' : 'Oak measure table'
   const sceneCode = document.mode === 'height' ? 'ROOM 01' : 'TABLE 02'
+  const hint =
+    document.mode === 'feet' && document.feet.navMode === 'inspect'
+      ? 'Tap a pair for details · Drag to pan · Scroll to zoom'
+      : document.mode === 'feet'
+        ? 'Tap a pair for details · Drag to orbit · Scroll to zoom'
+        : 'Tap a person for details · Drag to orbit · Scroll to zoom'
 
   return (
     <div className={`compare-app mode-${document.mode}`}>
@@ -58,18 +156,31 @@ export function App({ app }: { app: CompareApp }) {
       <main className="workspace">
         <CatalogDrawer app={app} document={document} announce={setNotice} />
 
-        <section className="stage-panel" aria-label={`${sceneName} 3D stage`}>
+        <section
+          ref={stageRef}
+          className={fullscreen === 'off' ? 'stage-panel' : 'stage-panel is-fullscreen'}
+          aria-label={`${sceneName} 3D stage`}
+        >
           <div className="stage-toolbar">
             <div className="stage-title">
               <span>{sceneCode}</span>
               <strong>{sceneName}</strong>
             </div>
             <div className="stage-controls">
-              <NavToggles app={app} document={document} />
-              <span className="toolbar-divider" />
+              {document.mode === 'feet' && (
+                <>
+                  <NavToggles app={app} document={document} />
+                  <span className="toolbar-divider" />
+                </>
+              )}
               <UnitToggles app={app} document={document} />
               <span className="toolbar-divider" />
-              <ViewActions app={app} />
+              <ViewActions
+                app={app}
+                fullscreen={fullscreen !== 'off'}
+                onShare={() => void share()}
+                onToggleFullscreen={() => void toggleFullscreen()}
+              />
             </div>
           </div>
 
@@ -82,7 +193,7 @@ export function App({ app }: { app: CompareApp }) {
               <div className="scene-state scene-loading" role="status">
                 <span className="loading-cube" aria-hidden="true" />
                 <strong>Preparing the 3D stage</strong>
-                <p>Building procedural models in your browser.</p>
+                <p>Starting the renderer in your browser.</p>
               </div>
             )}
 
@@ -126,17 +237,19 @@ export function App({ app }: { app: CompareApp }) {
               <span className="status-dot" />
               Live scale
             </div>
-            <div className="navigation-hint">
-              {document.mode === 'height' && document.height.navMode === 'walk'
-                ? 'Click the stage to look · W A S D to move · Esc to release'
-                : document.mode === 'feet' && document.feet.navMode === 'inspect'
-                  ? 'Drag to pan · Scroll to inspect scale'
-                  : 'Drag to orbit · Scroll to zoom · Right-drag to pan'}
-            </div>
+            <div className="navigation-hint">{hint}</div>
             <div className="scale-key">
               <span />
               {document.mode === 'height' ? '1 m floor grid' : '1 cm surface grid'}
             </div>
+            {/* Lets scripts and assistive tech know when models are still downloading. */}
+            <span
+              className="sr-only stage-status"
+              role="status"
+              data-loading={loading ? 'true' : 'false'}
+            >
+              {loading ? 'Loading models' : 'Models ready'}
+            </span>
           </div>
         </section>
 

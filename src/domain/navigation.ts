@@ -1,4 +1,3 @@
-export type HeightNavMode = 'orbit' | 'walk'
 export type FeetNavMode = 'orbit' | 'inspect'
 
 export type HeightOrbitSnapshot = {
@@ -7,14 +6,8 @@ export type HeightOrbitSnapshot = {
   position: readonly [number, number, number]
 }
 
-export type HeightWalkSnapshot = {
-  kind: 'walk'
-  eye: readonly [number, number, number]
-  yaw: number
-  pitch: number
-}
-
-export type HeightNavSnapshot = HeightOrbitSnapshot | HeightWalkSnapshot
+/** Height mode only orbits. The alias keeps the world contract symmetrical with feet. */
+export type HeightNavSnapshot = HeightOrbitSnapshot
 
 export type FeetOrbitSnapshot = {
   kind: 'orbit'
@@ -41,5 +34,3 @@ export type FeetCameraIntent =
   | { kind: 'frame-selection' }
   | { kind: 'reset' }
   | { kind: 'restore'; snapshot: FeetNavSnapshot }
-
-export const DEFAULT_WALK_EYE_M = 1.65

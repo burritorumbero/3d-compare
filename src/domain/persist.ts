@@ -6,7 +6,12 @@ import {
 } from './catalog.ts'
 import type { CompareDocument, Mode } from './document.ts'
 import { FEET_CAP, type FeetWorld, type PlacedFoot } from './feet-world.ts'
-import { HEIGHT_CAP, type HeightWorld, type PlacedHuman } from './height-world.ts'
+import {
+  HEIGHT_CAP,
+  sanitizeHumanName,
+  type HeightWorld,
+  type PlacedHuman,
+} from './height-world.ts'
 import { placementId } from './ids.ts'
 import type { FloorPose, SurfacePose } from './layout.ts'
 import {
@@ -19,7 +24,7 @@ import {
   type LengthUnit,
   type ParseResult,
 } from './measure.ts'
-import type { FeetNavMode, HeightNavMode } from './navigation.ts'
+import type { FeetNavMode } from './navigation.ts'
 import type { ShoeSystem } from './shoe-charts.ts'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -88,12 +93,14 @@ function humanPlacement(value: unknown): PlacedHuman | null {
     return null
   }
 
+  const name = typeof value.name === 'string' ? sanitizeHumanName(value.name) : ''
   return {
     kind: 'human',
     id: placementId(value.id),
     catalogId,
     heightMm: heightMm(value.heightMm),
     pose,
+    ...(name ? { name } : {}),
   }
 }
 
@@ -147,13 +154,10 @@ function heightWorld(value: unknown): HeightWorld | null {
     validPlacements.some((placement) => placement.id === value.selected)
       ? placementId(value.selected)
       : null
-  const navMode: HeightNavMode = value.navMode === 'walk' ? 'walk' : 'orbit'
-
   return {
     kind: 'height',
     placements: validPlacements,
     selected,
-    navMode,
     cameraIntent: { kind: 'none' },
     savedNav: null,
   }

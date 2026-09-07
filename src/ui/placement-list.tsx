@@ -1,6 +1,7 @@
 import type { CompareApp } from '../app/compare-app.ts'
 import { footEntry } from '../catalog/feet.ts'
 import { humanEntry } from '../catalog/humans.ts'
+import { humanDisplayName } from '../catalog/names.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { formatHeight } from '../domain/measure.ts'
 import { formatShoe } from '../domain/shoe-charts.ts'
@@ -37,6 +38,7 @@ export function PlacementList({
           {isHeight
             ? document.height.placements.map((placement, index) => {
                 const entry = humanEntry(placement.catalogId)
+                const name = humanDisplayName(placement)
                 return (
                   <li key={placement.id}>
                     <div
@@ -59,14 +61,14 @@ export function PlacementList({
                           <PersonIcon />
                         </span>
                         <span className="lineup-copy">
-                          <strong>{entry.label}</strong>
+                          <strong>{name}</strong>
                           <small>{formatHeight(placement.heightMm, document.heightUnit)}</small>
                         </span>
                       </button>
                       <button
                         type="button"
                         className="lineup-remove"
-                        aria-label={`Remove ${entry.label}`}
+                        aria-label={`Remove ${name}`}
                         onClick={() => app.remove(placement.id)}
                       >
                         <TrashIcon />

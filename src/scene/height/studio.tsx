@@ -34,16 +34,8 @@ export function HeightStudio({ children }: { children: ReactNode }) {
         fadeStrength={1.4}
         infiniteGrid={false}
       />
-      <mesh position={[0, 2.1, -2.72]}>
-        <boxGeometry args={[FLOOR_WIDTH_M, 4.2, 0.12]} />
-        <meshStandardMaterial color="#c7c7c1" roughness={0.96} />
-      </mesh>
-      <mesh position={[-FLOOR_WIDTH_M / 2 + 0.4, 2.1, 0]}>
-        <boxGeometry args={[0.12, 4.2, 5.5]} />
-        <meshStandardMaterial color="#afb0ab" roughness={0.94} />
-      </mesh>
-
-      <group position={[-FLOOR_WIDTH_M / 2 + 1.15, 0, -2.62]}>
+      {/* A free-standing 220 cm post keeps a scale reference on an open floor. */}
+      <group position={[-FLOOR_WIDTH_M / 2 + 1.15, 0, -2.2]}>
         <mesh position={[0, 1.1, 0.012]}>
           <boxGeometry args={[0.018, 2.2, 0.012]} />
           <meshBasicMaterial color="#444b48" />

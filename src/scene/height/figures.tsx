@@ -83,16 +83,16 @@ function HumanModel({ app, draw }: FigureProps) {
           />
         </mesh>
       )}
-      <Html
-        center
-        position={[0, size.y + 0.14, 0]}
-        distanceFactor={7}
-        style={{ pointerEvents: 'none' }}
-      >
-        <span className={draw.selected ? 'scene-label is-selected' : 'scene-label'}>
-          {draw.label}
-        </span>
-      </Html>
+      {draw.selected && (
+        <Html
+          center
+          position={[0, size.y + 0.14, 0]}
+          distanceFactor={7}
+          style={{ pointerEvents: 'none' }}
+        >
+          <span className="scene-label is-selected">{draw.label}</span>
+        </Html>
+      )}
     </>
   )
 }

@@ -15,11 +15,11 @@ import {
 import {
   placeHuman as addHuman,
   removeHuman,
+  renameHuman as changeHumanName,
   repositionHuman,
   saveHeightNav,
   selectHuman,
   setHeightCameraIntent,
-  setHeightNavMode as changeHeightNavMode,
   updateHumanHeight as changeHumanHeight,
 } from '../domain/height-world.ts'
 import { mintPlacementId, type PlacementId } from '../domain/ids.ts'
@@ -34,7 +34,6 @@ import type {
   FeetNavMode,
   FeetNavSnapshot,
   HeightCameraIntent,
-  HeightNavMode,
   HeightNavSnapshot,
 } from '../domain/navigation.ts'
 import { parseDocumentJson, serializeDocument } from '../domain/persist.ts'
@@ -47,6 +46,8 @@ import {
 
 export type CompareAppOptions = {
   persistKey?: string
+  /** Starts from this document instead of the persisted one, and persists it right away. */
+  initialDocument?: CompareDocument
 }
 
 export type CompareApp = {
@@ -58,11 +59,11 @@ export type CompareApp = {
   placeHuman(catalogId: HumanCatalogId): PlaceResult
   placeFoot(catalogId: FootCatalogId): PlaceResult
   updateHumanHeight(id: PlacementId, spec: HeightSpec): UpdateResult
+  renameHuman(id: PlacementId, name: string): UpdateResult
   updateFootSize(id: PlacementId, spec: ShoeSpec): UpdateResult
   select(id: PlacementId | null): void
   remove(id: PlacementId): void
   reposition(id: PlacementId, delta: PlanarDelta): UpdateResult
-  setHeightNavMode(mode: HeightNavMode): void
   setFeetNavMode(mode: FeetNavMode): void
   frameSelection(): void
   resetView(): void
@@ -95,8 +96,23 @@ function persistedDocument(persistKey: string | undefined): CompareDocument {
   }
 }
 
+function persist(persistKey: string | undefined, document: CompareDocument): void {
+  if (!persistKey || typeof localStorage === 'undefined') {
+    return
+  }
+
+  try {
+    localStorage.setItem(persistKey, serializeDocument(document))
+  } catch {
+    // Storage can be unavailable in private browsing. The in-memory document still works.
+  }
+}
+
 export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
-  let state = persistedDocument(options.persistKey)
+  let state = options.initialDocument ?? persistedDocument(options.persistKey)
+  if (options.initialDocument) {
+    persist(options.persistKey, state)
+  }
   const listeners = new Set<() => void>()
 
   function publish(next: CompareDocument): void {
@@ -105,13 +121,7 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
     }
 
     state = next
-    if (options.persistKey && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(options.persistKey, serializeDocument(state))
-      } catch {
-        // Storage can be unavailable in private browsing. The in-memory document still works.
-      }
-    }
+    persist(options.persistKey, state)
     listeners.forEach((listener) => listener())
   }
 
@@ -192,6 +202,13 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
       }
       return change.result
     },
+    renameHuman(id, name) {
+      const change = changeHumanName(state.height, id, name)
+      if (change.world !== state.height) {
+        publish({ ...state, height: change.world })
+      }
+      return change.result
+    },
     updateFootSize(id, spec) {
       const placement = state.feet.placements.find((candidate) => candidate.id === id)
       if (!placement) {
@@ -241,10 +258,6 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
         publish({ ...state, feet: change.world })
       }
       return change.result
-    },
-    setHeightNavMode(mode) {
-      const height = changeHeightNavMode(state.height, mode)
-      publish(height === state.height ? state : { ...state, height })
     },
     setFeetNavMode(mode) {
       const feet = changeFeetNavMode(state.feet, mode)

@@ -20,11 +20,11 @@ export type PlanarDelta = {
 
 /** The human models stand in an A-pose about 1.2 m across, so a lineup needs this much room. */
 export const HUMAN_SPACING_M = 1.2
-/** A pair of feet with a narrowed stance is about 0.3 m across before scaling. */
-export const FOOT_SPACING_M = 0.42
+/** A pair of feet with a narrowed stance is about 0.3 m across before scaling, and up to 0.48 m at the largest sizes. */
+export const FOOT_SPACING_M = 0.5
 export const FOOT_COLUMNS = 5
 /** Rows of feet stand with their heels on lines this far in front of and behind the table center. */
-export const FOOT_ROW_OFFSET_M = 0.2
+export const FOOT_ROW_OFFSET_M = 0.26
 
 function centeredSlot(index: number): number {
   if (index === 0) {

@@ -2,14 +2,11 @@ import type { HumanCatalogId } from './catalog.ts'
 import type { PlacementId } from './ids.ts'
 import { nextHumanPose, type FloorPose, type PlanarDelta } from './layout.ts'
 import type { HeightMm } from './measure.ts'
-import type {
-  HeightCameraIntent,
-  HeightNavMode,
-  HeightNavSnapshot,
-} from './navigation.ts'
+import type { HeightCameraIntent, HeightNavSnapshot } from './navigation.ts'
 import type { PlaceResult, UpdateResult } from './results.ts'
 
 export const HEIGHT_CAP = 10
+export const HUMAN_NAME_MAX_LENGTH = 40
 
 export type PlacedHuman = {
   kind: 'human'
@@ -17,13 +14,14 @@ export type PlacedHuman = {
   catalogId: HumanCatalogId
   heightMm: HeightMm
   pose: FloorPose
+  /** A custom label. When absent, the catalog entry's label is shown. */
+  name?: string
 }
 
 export type HeightWorld = {
   kind: 'height'
   placements: readonly PlacedHuman[]
   selected: PlacementId | null
-  navMode: HeightNavMode
   cameraIntent: HeightCameraIntent
   savedNav: HeightNavSnapshot | null
 }
@@ -33,10 +31,14 @@ export function emptyHeightWorld(): HeightWorld {
     kind: 'height',
     placements: [],
     selected: null,
-    navMode: 'orbit',
     cameraIntent: { kind: 'none' },
     savedNav: null,
   }
+}
+
+/** Collapses whitespace and caps the length. Returns '' when nothing readable remains. */
+export function sanitizeHumanName(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim().slice(0, HUMAN_NAME_MAX_LENGTH)
 }
 
 export function selectedHuman(world: HeightWorld): PlacedHuman | null {
@@ -48,17 +50,20 @@ export function placeHuman(
   id: PlacementId,
   catalogId: HumanCatalogId,
   initialHeight: HeightMm,
+  name?: string,
 ): { world: HeightWorld; result: PlaceResult } {
   if (world.placements.length >= HEIGHT_CAP) {
     return { world, result: { ok: false, reason: 'cap-reached' } }
   }
 
+  const cleanName = name === undefined ? '' : sanitizeHumanName(name)
   const placement: PlacedHuman = {
     kind: 'human',
     id,
     catalogId,
     heightMm: initialHeight,
     pose: nextHumanPose(world.placements.length),
+    ...(cleanName ? { name: cleanName } : {}),
   }
 
   return {
@@ -87,6 +92,38 @@ export function updateHumanHeight(
       placements: world.placements.map((placement) =>
         placement.id === id ? { ...placement, heightMm: value } : placement,
       ),
+    },
+    result: { ok: true },
+  }
+}
+
+/** A blank name removes the custom label so the catalog label shows again. */
+export function renameHuman(
+  world: HeightWorld,
+  id: PlacementId,
+  raw: string,
+): { world: HeightWorld; result: UpdateResult } {
+  const placement = world.placements.find((candidate) => candidate.id === id)
+  if (!placement) {
+    return { world, result: { ok: false, reason: 'not-found' } }
+  }
+
+  const name = sanitizeHumanName(raw)
+  if ((placement.name ?? '') === name) {
+    return { world, result: { ok: true } }
+  }
+
+  return {
+    world: {
+      ...world,
+      placements: world.placements.map((candidate) => {
+        if (candidate.id !== id) {
+          return candidate
+        }
+
+        const { name: _previous, ...rest } = candidate
+        return name ? { ...rest, name } : rest
+      }),
     },
     result: { ok: true },
   }
@@ -139,10 +176,6 @@ export function repositionHuman(
     },
     result: { ok: true },
   }
-}
-
-export function setHeightNavMode(world: HeightWorld, navMode: HeightNavMode): HeightWorld {
-  return world.navMode === navMode ? world : { ...world, navMode }
 }
 
 export function setHeightCameraIntent(
