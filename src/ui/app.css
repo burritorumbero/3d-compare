@@ -572,9 +572,7 @@
   z-index: 2;
   pointer-events: none;
   color: rgb(255 255 255 / 82%);
-  background: rgb(27 31 29 / 72%);
   box-shadow: 0 4px 16px rgb(0 0 0 / 10%);
-  backdrop-filter: blur(10px);
 }
 
 .scene-badge {
