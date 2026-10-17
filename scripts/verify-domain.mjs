@@ -11,6 +11,7 @@ import {
   setFootDimension,
   typicalFootShape,
 } from '../src/domain/foot-shape.ts'
+import { footLineupPose } from '../src/domain/feet-world.ts'
 import { HUMAN_NAME_MAX_LENGTH } from '../src/domain/height-world.ts'
 import { mintPlacementId } from '../src/domain/ids.ts'
 import { parseDocumentJson, serializeDocument } from '../src/domain/persist.ts'
@@ -24,7 +25,7 @@ import {
   parseHeightSpec,
 } from '../src/domain/measure.ts'
 import { parseShoeSpec } from '../src/domain/shoe-charts.ts'
-import { humanLineupX } from '../src/scene/draw.ts'
+import { humanLineupX, toFootDraw } from '../src/scene/draw.ts'
 import { BODY_LANDMARKS, LANDMARK_HEIGHT_ORDER, averageLandmarks, statureTargets } from '../src/domain/stature.ts'
 
 assert.equal(HUMAN_CATALOG.length, 6)
@@ -280,6 +281,25 @@ for (const sex of ['female', 'male']) {
   assert.ok(Math.abs(tall.stature - 3048) < 1e-9, 'stature lands exactly')
   const tallAverage = averageLandmarks(sex, 3048)
   assert.ok(Math.abs(tall.knee / tallAverage.knee - 1.04) < 1e-9, 'a long-shinned person stays long-shinned')
+}
+
+// Saved 0.5 m columns and remove/add cycles must reflow on the wider table.
+const tableApp = createCompareApp()
+tableApp.setMode('feet')
+for (let index = 0; index < 10; index += 1) tableApp.placeFoot('foot-male')
+const savedTable = JSON.parse(serializeDocument(tableApp.getState()))
+for (const placement of savedTable.feet.placements) placement.pose.x *= 0.5 / 0.62
+const restoredTable = parseDocumentJson(JSON.stringify(savedTable))
+assert.ok(restoredTable.ok)
+for (const world of [restoredTable.value.feet, { ...restoredTable.value.feet, placements: restoredTable.value.feet.placements.slice(1) }]) {
+  const positions = world.placements.map((placement) => toFootDraw(placement, null, 'US', footLineupPose(world, placement.id)).position)
+  assert.equal(new Set(positions.map((position) => position.join(','))).size, positions.length, 'reflow produces unique slots')
+  for (const [index, position] of positions.entries()) {
+    assert.ok(Math.abs(position[0]) + 0.29 < 1.6, 'the largest pairs fit inside the 3.2 m table')
+    for (const other of positions.slice(index + 1)) {
+      if (position[2] === other[2]) assert.ok(Math.abs(position[0] - other[0]) >= 0.6, 'neighboring grown calves stay apart')
+    }
+  }
 }
 
 console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, foot shapes, stature allometry, persistence with migration, and share links.')

@@ -115,6 +115,7 @@ export function toFootDraw(
   placement: PlacedFoot,
   selectedId: PlacementId | null,
   system: ShoeSystem,
+  lineup: Pick<PlacedFoot['pose'], 'x' | 'z'> = placement.pose,
 ): FootDraw {
   const entry = footEntry(placement.catalogId)
   return {
@@ -124,7 +125,7 @@ export function toFootDraw(
     referenceLengthM: entry.referenceFootLengthMm / 1000,
     shape: placement.shape,
     lengthScale: footScale(entry.referenceFootLengthMm, placement.shape.lengthMm),
-    position: [placement.pose.x, 0, placement.pose.z],
+    position: [lineup.x, 0, lineup.z],
     yaw: placement.pose.yaw,
     selected: placement.id === selectedId,
     label: `${entry.label} · ${formatShoe(placement.shape.lengthMm, system, entry.sex)}`,

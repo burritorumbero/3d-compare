@@ -3,7 +3,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { CompareApp } from '../../app/compare-app.ts'
-import type { FeetWorld } from '../../domain/feet-world.ts'
+import { footLineupPose, type FeetWorld } from '../../domain/feet-world.ts'
 import type { ShoeSystem } from '../../domain/shoe-charts.ts'
 import { BlobShadow } from '../blob-shadow.tsx'
 import { toFootDraw, type FootDraw } from '../draw.ts'
@@ -35,13 +35,13 @@ function toBox(bounds: Bounds, shiftX: number): THREE.Box3 {
 }
 
 /**
- * The pack authors each pair in a relaxed stance. Sliding the two feet toward
- * the center keeps every pair compact on the table: returns how far each foot
- * moves inward, from the solved bounds of the left (+x) and right (-x) foot.
+ * Keep a clear gap between the complete feet AND lower legs. Narrow the
+ * authored stance for smaller pairs, or widen it (negative shift) when the
+ * grown calves would otherwise touch at the largest sizes.
  */
 function stanceShift(left: Bounds, right: Bounds): number {
   const innerEdge = Math.min(left.min[0], -right.max[0])
-  return Math.max(0, innerEdge - PAIR_GAP_M / 2)
+  return innerEdge - PAIR_GAP_M / 2
 }
 
 /** Stands in at the target size while the textured pair, its rig, and the kernel load. */
@@ -188,7 +188,7 @@ export function FootFigures({
     <FootFigure
       key={placement.id}
       app={app}
-      draw={toFootDraw(placement, world.selected, system)}
+      draw={toFootDraw(placement, world.selected, system, footLineupPose(world, placement.id))}
     />
   ))
 }

@@ -1,6 +1,6 @@
 // Proves the WebAssembly kernel on the shipped feet rigs: each rig matches its
 // GLB, and across the full range of foot shapes the solved rig measures what was
-// asked within 0.1 mm, soles stay on the floor, the shin is untouched, left and
+// asked within 0.1 mm, soles stay on the floor, the lower leg grows with the foot, left and
 // right feet solve alike, and three.js skinning with the kernel's bone scales
 // reproduces the kernel's measurements (so the GPU draws what the kernel measured).
 import assert from 'node:assert/strict'
@@ -9,9 +9,12 @@ import { fileURLToPath } from 'node:url'
 import * as THREE from 'three'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
-import { footDimensionRange } from '../src/domain/foot-shape.ts'
+import { footDimensionRange, typicalFootShape, setFootDimension, resizeFoot } from '../src/domain/foot-shape.ts'
+import { FOOT_SPACING_M } from '../src/domain/layout.ts'
+import { shoeRows } from '../src/domain/shoe-charts.ts'
 import { averageLandmarks, statureTargets } from '../src/domain/stature.ts'
-import { assertFootRig, footTargets, solveFoot } from '../src/kernel/foot.ts'
+import { assertFootRig, footRigTargets, solveFoot } from '../src/kernel/foot.ts'
+import { feetRigFile } from './foot-rig.mjs'
 import { RigSolver, loadKernel } from '../src/kernel/index.ts'
 import { applyPose, rigNode } from '../src/scene/rigged.ts'
 import { meshAttribute, meshPositions, readGlb } from './glb.mjs'
@@ -33,12 +36,13 @@ function skinWithApp(glb, rig, pose) {
   node.name = rig.mesh
   const foot = rigNode(node, rig)
   applyPose(foot, pose)
-  // Placement moves the root; skinning must follow it exactly.
+  // Placement moves the root; applyBoneTransform still returns mesh-local
+  // coordinates (bindMatrixInverse already cancels the root translation).
   foot.root.position.set(0.37, 0, -0.21)
   foot.root.updateMatrixWorld(true)
   const [mesh] = foot.meshes
   return rig.vertices.source.map((source) =>
-    mesh.applyBoneTransform(source, new THREE.Vector3().fromBufferAttribute(geometry.getAttribute('position'), source)).sub(foot.root.position),
+    mesh.applyBoneTransform(source, new THREE.Vector3().fromBufferAttribute(geometry.getAttribute('position'), source)),
   )
 }
 
@@ -66,6 +70,7 @@ for (const entry of FEET_CATALOG) {
     readFileSync(fileURLToPath(new URL(`../public/models/${entry.model.file.replace(/\.glb$/, '.rig.json')}`, import.meta.url)), 'utf8'),
   )
   assert.equal(rigFile.version, 1)
+  assert.deepEqual(rigFile, JSON.parse(JSON.stringify(feetRigFile(glb))), `${entry.id}: shipped rigs match the asset generator`)
   assert.deepEqual(rigFile.rigs.map((rig) => rig.mesh), ['LeftFootAndShin', 'RightFootAndShin'])
   for (const rig of rigFile.rigs) {
     // The rig samples the GLB: every sampled vertex sits where the GLB has it, with the GLB's weights.
@@ -120,10 +125,13 @@ for (const entry of FEET_CATALOG) {
           assert.ok(solution.maxErrorMm <= MAX_ERROR_MM, `${label}: off by ${solution.maxErrorMm.toFixed(3)} mm`)
           // The authored soles rest 1 mm up; vertical scaling about the floor keeps them there or closer.
           assert.ok(
-            solution.bounds.min[1] >= -1e-9 && solution.bounds.min[1] <= rest.bounds.min[1] * solution.controls.thickness + 1e-6,
+            solution.bounds.min[1] >= -1e-9 && solution.bounds.min[1] <= rest.bounds.min[1] * solution.controls.lowerLegScale * solution.controls.thickness + 1e-6,
             `${label}: sole stays on the floor (lowest point ${(solution.bounds.min[1] * 1000).toFixed(2)} mm)`,
           )
-          assert.ok(Math.abs(solution.bounds.max[1] - restTop) < 0.0005, `${label}: shin top is unchanged`)
+          const pairWidth = (solution.bounds.max[0] - solution.bounds.min[0]) * 2 + 0.05
+          assert.ok(pairWidth < FOOT_SPACING_M, `${label}: the complete pair fits its table column`)
+          const legGrowth = (shape.lengthMm - shape.toeLengthMm) / (1000 * (rest.measures.length - rest.measures.toeLength))
+          assert.ok(Math.abs(solution.bounds.max[1] - restTop * legGrowth) < 0.0001, `${label}: lower leg grows with heel-to-ball length`)
           for (const value of [...solution.bounds.min, ...solution.bounds.max]) {
             assert.ok(Number.isFinite(value), `${label}: bounds are finite`)
           }
@@ -146,11 +154,56 @@ for (const entry of FEET_CATALOG) {
   const sample = { lengthMm: 310, toeLengthMm: 95, ballWidthMm: 128, instepHeightMm: 70, locked: [] }
   const solution = solveFoot(solver, sample)
   const three = measureWithThree(rig, skinWithApp(glb, rig, solver.pose(solution.controls)))
-  for (const [name, target] of Object.entries(footTargets(sample))) {
+  for (const [name, target] of Object.entries(footRigTargets(solver, sample))) {
     assert.ok(
       Math.abs(three[name] - target) < 0.0001,
       `${entry.id}: the app's skinned foot measures ${name} ${(three[name] * 1000).toFixed(2)} mm, wanted ${(target * 1000).toFixed(2)} mm`,
     )
+  }
+
+  // Every offered shoe size goes through the real skinning path on BOTH feet.
+  // In particular, US 20 used to stretch away from a completely static ankle.
+  for (const system of ['US', 'EU']) {
+    for (const row of shoeRows(system, entry.sex)) {
+      const shape = typicalFootShape(entry.sex, row.mm)
+      const solved = solveFoot(solver, shape)
+      for (const footSolver of [solver, mirror]) {
+        const footRig = footSolver.rig
+        const points = skinWithApp(glb, footRig, footSolver.pose(solved.controls))
+        const measured = measureWithThree(footRig, points)
+        for (const [name, target] of Object.entries(footRigTargets(footSolver, shape))) {
+          assert.ok(Math.abs(measured[name] - target) < 0.0001, `${entry.id} ${system} ${row.size} ${footRig.mesh}: skinned ${name} matches target`)
+        }
+        // Check the whole pure-shin region, not just its top: it must move in
+        // depth and grow in girth as well as height, retaining its own shape.
+        const head = footRig.bones[0].head
+        const restFoot = footSolver.evaluate().measures
+        const growth = (shape.lengthMm - shape.toeLengthMm) / (1000 * (restFoot.length - restFoot.toeLength))
+        footRig.vertices.source.forEach((_, local) => {
+          if (footRig.vertices.skinWeights[local * 4] < 0.99999) return
+          for (let axis = 0; axis < 3; axis += 1) {
+            const authored = footRig.vertices.positions[local * 3 + axis]
+            const expected = head[axis] + (authored - head[axis]) * growth
+            assert.ok(Math.abs(points[local].getComponent(axis) - expected) < 0.0001, `${entry.id} ${system} ${row.size}: shin preserves proportions on axis ${axis}: ${points[local].getComponent(axis)} vs ${expected}`)
+          }
+        })
+      }
+    }
+  }
+
+  // Shape-only edits must not turn toe length / width / instep into a leg-size
+  // control. Shoe resizing still grows the leg when a foot dimension is locked.
+  const base = typicalFootShape(entry.sex, 270)
+  const baseLegHeight = solveFoot(solver, base).measures.lowerLegHeight
+  for (const [dimension, mm] of [['toeLength', base.toeLengthMm + 10], ['ballWidth', 110], ['instepHeight', 75]]) {
+    const edited = setFootDimension(base, entry.sex, dimension, mm)
+    assert.ok(edited.ok)
+    assert.ok(Math.abs(solveFoot(solver, edited.value).measures.lowerLegHeight - baseLegHeight) < 0.0001, `${dimension}: lower leg stays unchanged`)
+    const resized = resizeFoot(edited.value, entry.sex, 344)
+    assert.ok(resized.ok)
+    const enlarged = solveFoot(solver, resized.value)
+    assert.ok(enlarged.maxErrorMm < MAX_ERROR_MM)
+    assert.ok(enlarged.measures.lowerLegHeight > baseLegHeight * 1.2, `${dimension}: locked dimension permits proportional shoe resizing`)
   }
 
   // Bad input is refused rather than producing garbage.
