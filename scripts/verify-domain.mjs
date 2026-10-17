@@ -279,6 +279,15 @@ for (const sex of ['female', 'male']) {
   assert.deepEqual(statureTargets(sex, authored, 1700), authored, 'targets at the authored stature are the authored landmarks')
   const tall = statureTargets(sex, authored, 3048)
   assert.ok(Math.abs(tall.stature - 3048) < 1e-9, 'stature lands exactly')
+  for (const height of [900, 1200, 1700, 2000, 2500, 3048]) {
+    const targets = statureTargets(sex, authored, height)
+    for (const landmark of ['shoulder', 'neck', 'ear']) {
+      assert.ok(Math.abs((height - targets[landmark]) / height - (authored.stature - authored[landmark]) / authored.stature) < 1e-12, `${sex}: upper-body proportions survive resizing to ${height}`)
+    }
+    for (let index = 1; index < LANDMARK_HEIGHT_ORDER.length; index += 1) {
+      assert.ok(targets[LANDMARK_HEIGHT_ORDER[index]] > targets[LANDMARK_HEIGHT_ORDER[index - 1]], `${sex}: resized landmarks keep their order`)
+    }
+  }
   const tallAverage = averageLandmarks(sex, 3048)
   assert.ok(Math.abs(tall.knee / tallAverage.knee - 1.04) < 1e-9, 'a long-shinned person stays long-shinned')
 }

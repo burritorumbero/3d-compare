@@ -1,6 +1,6 @@
 import { Html, useCursor } from '@react-three/drei'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ThreeEvent } from '@react-three/fiber'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
 import type { CompareApp } from '../../app/compare-app.ts'
 import { footLineupPose, type FeetWorld } from '../../domain/feet-world.ts'
@@ -89,23 +89,12 @@ function FootModel({ app, draw }: FigureProps) {
   }, [feet, rig, solved, shift])
 
   const [hovered, setHovered] = useState(false)
-  const ring = useRef<THREE.Mesh>(null)
-  const ringMaterial = useRef<THREE.MeshBasicMaterial>(null)
   const size = pairBounds.getSize(new THREE.Vector3())
   const center = pairBounds.getCenter(new THREE.Vector3())
   const ringX = size.x / 2 + 0.04
   const ringZ = size.z / 2 + 0.04
 
   useCursor(hovered)
-  useFrame(({ clock }) => {
-    if (!ring.current || !ringMaterial.current || !draw.selected) {
-      return
-    }
-
-    const pulse = 1 + Math.sin(clock.elapsedTime * 3.8) * 0.04
-    ring.current.scale.set(ringX * pulse, ringZ * pulse, 1)
-    ringMaterial.current.opacity = 0.58 + Math.sin(clock.elapsedTime * 3.8) * 0.1
-  })
 
   function select(event: ThreeEvent<MouseEvent>): void {
     event.stopPropagation()
@@ -136,15 +125,13 @@ function FootModel({ app, draw }: FigureProps) {
       </mesh>
       {(draw.selected || hovered) && (
         <mesh
-          ref={ring}
           position={[center.x, 0.006, center.z]}
           rotation={[-Math.PI / 2, 0, 0]}
           scale={[ringX, ringZ, 1]}
         >
           <ringGeometry args={[0.9, 1, 64]} />
           <meshBasicMaterial
-            ref={ringMaterial}
-            color={draw.selected ? '#f0ad63' : '#fff7e8'}
+            color={draw.selected ? '#8ae8cc' : '#fff7e8'}
             transparent
             opacity={draw.selected ? 0.66 : 0.3}
             depthWrite={false}
@@ -155,7 +142,6 @@ function FootModel({ app, draw }: FigureProps) {
         <Html
           center
           position={[center.x, size.y + 0.08, center.z]}
-          distanceFactor={2.2}
           style={{ pointerEvents: 'none' }}
         >
           <span className="scene-label feet-label is-selected">{draw.label}</span>

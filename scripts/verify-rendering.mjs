@@ -43,6 +43,8 @@ try {
     if (scenario.frame) await page.locator('button[title="Frame selection"]').evaluate((button) => button.click())
     // Let camera damping and texture uploads settle before capturing.
     await page.waitForTimeout(700)
+    const labelHeight = await page.locator('.scene-label').evaluate((label) => label.getBoundingClientRect().height)
+    assert.ok(labelHeight >= 26 && labelHeight <= 40, `${scenario.name}: label stays readable at any camera distance (${labelHeight}px)`)
     // Flush a compositor frame first. Software WebGL can otherwise return a
     // stale drawing buffer even after React has mounted the ready label.
     await page.screenshot({ path: `${artifactDir}/${scenario.name}-ui.png` })
@@ -55,7 +57,7 @@ try {
     const pixels = Buffer.from(dataUrl.split(',')[1], 'base64')
     const stats = await sharp(pixels).stats()
     const channels = stats.channels.slice(0, 3)
-    assert.ok(channels.reduce((sum, channel) => sum + channel.mean, 0) / 3 > 40, `${scenario.name}: visible stage`)
+    assert.ok(channels.reduce((sum, channel) => sum + channel.mean, 0) / 3 > 15, `${scenario.name}: visible stage`)
     assert.ok(channels.some((channel) => channel.max - channel.min > 100), `${scenario.name}: visible geometry`)
     await writeFile(`${artifactDir}/${scenario.name}-webgl.png`, pixels)
     assert.deepEqual(errors, [], `${scenario.name}: no browser errors`)

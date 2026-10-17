@@ -5,14 +5,19 @@ import { humanDisplayName } from '../catalog/names.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { formatHeight } from '../domain/measure.ts'
 import { formatShoe } from '../domain/shoe-charts.ts'
-import { FootIcon, PersonIcon, TrashIcon } from './icons.tsx'
+import { PlusIcon, TrashIcon } from './icons.tsx'
+import { ModelPreview } from './model-preview.tsx'
 
 export function PlacementList({
   app,
   document,
+  onAdd,
+  onSelect,
 }: {
   app: CompareApp
   document: CompareDocument
+  onAdd(): void
+  onSelect(): void
 }) {
   const isHeight = document.mode === 'height'
   const placements = isHeight ? document.height.placements : document.feet.placements
@@ -22,16 +27,30 @@ export function PlacementList({
     <section className="panel lineup-panel" aria-labelledby="lineup-title">
       <div className="panel-heading">
         <div>
-          <span className="eyebrow">On stage</span>
+          <span className="eyebrow">Your comparison</span>
           <h2 id="lineup-title">Lineup</h2>
         </div>
-        <span className="lineup-count">{placements.length}</span>
+        <span className="lineup-count">{placements.length} / 10</span>
       </div>
 
+      <button
+        className="primary-button add-model-button"
+        type="button"
+        onClick={onAdd}
+        disabled={placements.length >= 10}
+      >
+        <PlusIcon />
+        {isHeight ? 'Add person' : 'Add feet'}
+      </button>
+      {placements.length >= 10 && (
+        <p className="cap-message" role="status">
+          Lineup full. Remove a model to add another.
+        </p>
+      )}
       {placements.length === 0 ? (
         <div className="lineup-empty">
           <span className="empty-rule" />
-          <p>Your comparison lineup will appear here.</p>
+          <p>Add your first model to start comparing.</p>
         </div>
       ) : (
         <ol className="lineup-list">
@@ -42,23 +61,22 @@ export function PlacementList({
                 return (
                   <li key={placement.id}>
                     <div
-                      className={placement.id === selected ? 'lineup-item is-selected' : 'lineup-item'}
+                      className={
+                        placement.id === selected ? 'lineup-item is-selected' : 'lineup-item'
+                      }
                     >
                       <button
                         type="button"
                         className="lineup-select"
                         aria-current={placement.id === selected}
-                        onClick={() => app.select(placement.id)}
+                        onClick={() => {
+                          app.select(placement.id)
+                          onSelect()
+                        }}
                       >
                         <span className="lineup-index">{String(index + 1).padStart(2, '0')}</span>
-                        <span
-                          className="lineup-avatar"
-                          style={{
-                            color: entry.swatch.outfitHex,
-                            backgroundColor: entry.swatch.skinHex,
-                          }}
-                        >
-                          <PersonIcon />
+                        <span className="lineup-avatar">
+                          <ModelPreview model={entry.model} />
                         </span>
                         <span className="lineup-copy">
                           <strong>{name}</strong>
@@ -82,32 +100,27 @@ export function PlacementList({
                 return (
                   <li key={placement.id}>
                     <div
-                      className={placement.id === selected ? 'lineup-item is-selected' : 'lineup-item'}
+                      className={
+                        placement.id === selected ? 'lineup-item is-selected' : 'lineup-item'
+                      }
                     >
                       <button
                         type="button"
                         className="lineup-select"
                         aria-current={placement.id === selected}
-                        onClick={() => app.select(placement.id)}
+                        onClick={() => {
+                          app.select(placement.id)
+                          onSelect()
+                        }}
                       >
                         <span className="lineup-index">{String(index + 1).padStart(2, '0')}</span>
-                        <span
-                          className="lineup-avatar"
-                          style={{
-                            color: entry.swatch.outfitHex,
-                            backgroundColor: entry.swatch.skinHex,
-                          }}
-                        >
-                          <FootIcon />
+                        <span className="lineup-avatar">
+                          <ModelPreview model={entry.model} />
                         </span>
                         <span className="lineup-copy">
                           <strong>{entry.label}</strong>
                           <small>
-                            {formatShoe(
-                              placement.shape.lengthMm,
-                              document.shoeSystem,
-                              entry.sex,
-                            )}
+                            {formatShoe(placement.shape.lengthMm, document.shoeSystem, entry.sex)}
                             {placement.shape.locked.length > 0 && ' · custom shape'}
                           </small>
                         </span>

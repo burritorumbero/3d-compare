@@ -6,125 +6,116 @@ import { humanDisplayName } from '../catalog/names.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { selectedFoot } from '../domain/feet-world.ts'
 import { HUMAN_NAME_MAX_LENGTH, selectedHuman } from '../domain/height-world.ts'
-import { HEIGHT_RANGE_MESSAGE, formatHeight } from '../domain/measure.ts'
+import {
+  HEIGHT_MM_MIN,
+  HEIGHT_MM_MAX,
+  HEIGHT_RANGE_MESSAGE,
+  formatHeight,
+} from '../domain/measure.ts'
 import { formatShoe, shoeRows } from '../domain/shoe-charts.ts'
 import { FootDimensions } from './foot-dimensions.tsx'
-import { FootIcon, PersonIcon, TrashIcon } from './icons.tsx'
-import {
-  closestShoeSize,
-  heightInCentimeters,
-  splitImperialHeight,
-} from './size-codec.ts'
+import { FootIcon, PersonIcon, ResetIcon } from './icons.tsx'
+import { ModelPreview } from './model-preview.tsx'
+import { UnitToggles } from './unit-toggles.tsx'
+import { closestShoeSize, heightInCentimeters, splitImperialHeight } from './size-codec.ts'
 
-function EmptyInspector({ mode, hasPlacements }: { mode: 'height' | 'feet'; hasPlacements: boolean }) {
-  const noun = mode === 'height' ? 'person' : 'foot model'
+function EmptyInspector({
+  mode,
+  hasPlacements,
+}: {
+  mode: 'height' | 'feet'
+  hasPlacements: boolean
+}) {
   return (
     <section className="panel inspector-panel">
       <div className="panel-heading">
         <div>
-          <span className="eyebrow">Inspector</span>
-          <h2>Size</h2>
+          <span className="eyebrow">Make it yours</span>
+          <h2>Measurements</h2>
         </div>
       </div>
       <div className="inspector-empty">
         {mode === 'height' ? <PersonIcon /> : <FootIcon />}
-        <strong>{hasPlacements ? `Select a ${noun}` : `No ${noun} selected`}</strong>
+        <strong>{hasPlacements ? 'Select a model' : 'Start with a model'}</strong>
         <p>
           {hasPlacements
-            ? `Choose a ${noun} on the stage or in the lineup.`
-            : `Add a ${noun} from the model library to set its size.`}
+            ? 'Choose a model on the stage or in your lineup to adjust its measurements.'
+            : 'Add a model to set its size and see the comparison take shape.'}
         </p>
       </div>
     </section>
   )
 }
 
-function HeightInspector({
-  app,
-  document,
-}: {
-  app: CompareApp
-  document: CompareDocument
-}) {
+function HeightInspector({ app, document }: { app: CompareApp; document: CompareDocument }) {
   const placement = selectedHuman(document.height)
-  const initialImperial = placement
-    ? splitImperialHeight(placement.heightMm)
-    : { feet: 0, inches: 0 }
-  const [centimeters, setCentimeters] = useState(
-    placement ? String(heightInCentimeters(placement.heightMm)) : '',
-  )
-  const [feet, setFeet] = useState(String(initialImperial.feet))
-  const [inches, setInches] = useState(String(initialImperial.inches))
-  const [name, setName] = useState(placement?.name ?? '')
+  const [draft, setDraft] = useState<{ cm?: string; feet?: string; inches?: string }>({})
+  const [name, setName] = useState<string | null>(null)
   const [error, setError] = useState('')
-
-  if (!placement) {
-    return (
-      <EmptyInspector mode="height" hasPlacements={document.height.placements.length > 0} />
-    )
-  }
+  if (!placement)
+    return <EmptyInspector mode="height" hasPlacements={document.height.placements.length > 0} />
 
   const entry = humanEntry(placement.catalogId)
-  const placementId = placement.id
   const displayName = humanDisplayName(placement)
+  const imperial = splitImperialHeight(placement.heightMm)
+  const centimeters = draft.cm ?? String(heightInCentimeters(placement.heightMm))
+  const feet = draft.feet ?? String(imperial.feet)
+  const inches = draft.inches ?? String(imperial.inches)
 
+  function commit(): void {
+    if (Object.keys(draft).length === 0) return
+    const blank =
+      document.heightUnit === 'cm' ? !centimeters.trim() : !feet.trim() || !inches.trim()
+    const result = blank
+      ? { ok: false }
+      : app.updateHumanHeight(
+          placement!.id,
+          document.heightUnit === 'cm'
+            ? { unit: 'cm', value: Number(centimeters) }
+            : { unit: 'ftin', feet: Number(feet), inches: Number(inches) },
+        )
+    setError(result.ok ? '' : HEIGHT_RANGE_MESSAGE)
+    if (result.ok) setDraft({})
+  }
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
-    const result =
-      document.heightUnit === 'cm'
-        ? app.updateHumanHeight(placementId, {
-            unit: 'cm',
-            value: Number(centimeters),
-          })
-        : app.updateHumanHeight(placementId, {
-            unit: 'ftin',
-            feet: Number(feet),
-            inches: Number(inches),
-          })
-
-    setError(result.ok ? '' : HEIGHT_RANGE_MESSAGE)
+    commit()
   }
 
   return (
     <section className="panel inspector-panel" aria-labelledby="inspector-title">
-      <div className="panel-heading inspector-heading">
+      <div className="panel-heading">
         <div>
-          <span className="eyebrow">Inspector</span>
+          <span className="eyebrow">Selected person</span>
           <h2 id="inspector-title">{displayName}</h2>
         </div>
-        <button
-          className="icon-button danger"
-          type="button"
-          title={`Remove ${displayName}`}
-          aria-label={`Remove ${displayName}`}
-          onClick={() => app.remove(placement.id)}
-        >
-          <TrashIcon />
-        </button>
+        <span className="selection-indicator">Editing</span>
       </div>
       <div className="selection-summary">
-        <span
-          className="selection-avatar"
-          style={{ color: entry.swatch.outfitHex, backgroundColor: entry.swatch.skinHex }}
-        >
-          <PersonIcon />
+        <span className="selection-avatar">
+          <ModelPreview model={entry.model} />
         </span>
         <div>
           <strong>{formatHeight(placement.heightMm, document.heightUnit)}</strong>
-          <small>{entry.label} · {entry.subtitle}</small>
+          <small>
+            {entry.label} · {entry.sex === 'female' ? 'Female' : 'Male'}
+          </small>
         </div>
       </div>
       <label className="field name-field">
-        <span>Name</span>
+        <span>Display name</span>
         <span className="input-with-suffix">
           <input
             type="text"
             maxLength={HUMAN_NAME_MAX_LENGTH}
             placeholder={entry.label}
             autoComplete="off"
-            value={name}
+            value={name ?? placement.name ?? ''}
             onChange={(event) => setName(event.target.value)}
-            onBlur={() => app.renameHuman(placementId, name)}
+            onBlur={() => {
+              if (name !== null) app.renameHuman(placement.id, name)
+              setName(null)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()
@@ -134,10 +125,21 @@ function HeightInspector({
           />
         </span>
       </label>
-      <form className="size-form" onSubmit={submit}>
+      <div className="measurement-heading">
+        <h3>Height</h3>
+        <UnitToggles app={app} document={document} />
+      </div>
+      <form
+        className="size-form"
+        noValidate
+        onSubmit={submit}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) commit()
+        }}
+      >
         {document.heightUnit === 'cm' ? (
           <label className="field">
-            <span>Height</span>
+            <span className="sr-only">Height in centimeters</span>
             <span className="input-with-suffix">
               <input
                 type="number"
@@ -146,15 +148,17 @@ function HeightInspector({
                 step="0.1"
                 inputMode="decimal"
                 value={centimeters}
-                onChange={(event) => setCentimeters(event.target.value)}
+                aria-invalid={!!error}
+                aria-describedby="height-help"
+                onChange={(event) => setDraft({ cm: event.target.value })}
               />
-              <span>cm</span>
+              <span aria-hidden="true">cm</span>
             </span>
           </label>
         ) : (
           <div className="field-pair">
             <label className="field">
-              <span>Feet</span>
+              <span className="sr-only">Feet</span>
               <span className="input-with-suffix">
                 <input
                   type="number"
@@ -163,98 +167,125 @@ function HeightInspector({
                   step="1"
                   inputMode="numeric"
                   value={feet}
-                  onChange={(event) => setFeet(event.target.value)}
+                  aria-invalid={!!error}
+                  aria-describedby="height-help"
+                  onChange={(event) => setDraft({ ...draft, feet: event.target.value })}
                 />
-                <span>ft</span>
+                <span aria-hidden="true">ft</span>
               </span>
             </label>
             <label className="field">
-              <span>Inches</span>
+              <span className="sr-only">Inches</span>
               <span className="input-with-suffix">
                 <input
                   type="number"
                   min="0"
-                  max="11.9"
-                  step="0.1"
+                  max="11.99"
+                  step="0.01"
                   inputMode="decimal"
                   value={inches}
-                  onChange={(event) => setInches(event.target.value)}
+                  aria-invalid={!!error}
+                  aria-describedby="height-help"
+                  onChange={(event) => setDraft({ ...draft, inches: event.target.value })}
                 />
-                <span>in</span>
+                <span aria-hidden="true">in</span>
               </span>
             </label>
           </div>
         )}
-        {error && <p className="field-error">{error}</p>}
-        <button className="primary-button" type="submit">
-          Update height
+        <button className="sr-only" type="submit" tabIndex={-1}>
+          Apply height
         </button>
       </form>
-      <p className="measurement-note">
-        Proportions follow adult averages for this height (ANSUR II): taller people get relatively
-        longer legs and smaller heads.
+      <input
+        className="height-slider"
+        type="range"
+        aria-label="Height slider"
+        aria-valuetext={formatHeight(placement.heightMm, document.heightUnit)}
+        min={HEIGHT_MM_MIN}
+        max={HEIGHT_MM_MAX}
+        step="1"
+        value={placement.heightMm}
+        onChange={(event) => {
+          app.updateHumanHeight(placement.id, {
+            unit: 'cm',
+            value: Number(event.target.value) / 10,
+          })
+          setDraft({})
+          setError('')
+        }}
+      />
+      <div className="range-labels">
+        <span>{document.heightUnit === 'cm' ? '90 cm' : '2′ 11½″'}</span>
+        <span>{document.heightUnit === 'cm' ? '304.8 cm' : '10′ 0″'}</span>
+      </div>
+      <p
+        id="height-help"
+        className={error ? 'field-error' : 'field-help'}
+        role={error ? 'alert' : undefined}
+      >
+        {error || 'Type a value and press Enter, or drag to adjust.'}
       </p>
+      <button
+        className="text-button reset-height"
+        type="button"
+        onClick={() => {
+          app.updateHumanHeight(placement.id, { unit: 'cm', value: entry.referenceHeightMm / 10 })
+          setDraft({})
+          setError('')
+        }}
+      >
+        <ResetIcon />
+        Reset to model height
+      </button>
+      <div className="measurement-note">
+        <strong>Proportional from head to toe</strong>
+        <p>
+          The head and neck grow with height. Leg length and body width adjust using adult
+          proportions.
+        </p>
+      </div>
     </section>
   )
 }
 
-function FootInspector({
-  app,
-  document,
-}: {
-  app: CompareApp
-  document: CompareDocument
-}) {
+function FootInspector({ app, document }: { app: CompareApp; document: CompareDocument }) {
   const placement = selectedFoot(document.feet)
   const [error, setError] = useState('')
-
-  if (!placement) {
+  if (!placement)
     return <EmptyInspector mode="feet" hasPlacements={document.feet.placements.length > 0} />
-  }
-
   const entry = footEntry(placement.catalogId)
   const rows = shoeRows(document.shoeSystem, entry.sex)
-  const currentSize = closestShoeSize(
-    placement.shape.lengthMm,
-    document.shoeSystem,
-    entry.sex,
+  const currentSize = closestShoeSize(placement.shape.lengthMm, document.shoeSystem, entry.sex)
+  const exactSize = rows.some(
+    (row) => row.size === currentSize && row.mm === placement.shape.lengthMm,
   )
-
   return (
     <section className="panel inspector-panel" aria-labelledby="inspector-title">
-      <div className="panel-heading inspector-heading">
+      <div className="panel-heading">
         <div>
-          <span className="eyebrow">Inspector</span>
+          <span className="eyebrow">Selected pair</span>
           <h2 id="inspector-title">{entry.label}</h2>
         </div>
-        <button
-          className="icon-button danger"
-          type="button"
-          title={`Remove ${entry.label}`}
-          aria-label={`Remove ${entry.label}`}
-          onClick={() => app.remove(placement.id)}
-        >
-          <TrashIcon />
-        </button>
+        <span className="selection-indicator">Editing</span>
       </div>
       <div className="selection-summary">
-        <span
-          className="selection-avatar"
-          style={{ color: entry.swatch.outfitHex, backgroundColor: entry.swatch.skinHex }}
-        >
-          <FootIcon />
+        <span className="selection-avatar">
+          <ModelPreview model={entry.model} />
         </span>
         <div>
-          <strong>
-            {formatShoe(placement.shape.lengthMm, document.shoeSystem, entry.sex)}
-          </strong>
+          <strong>{formatShoe(placement.shape.lengthMm, document.shoeSystem, entry.sex)}</strong>
           <small>
             {placement.shape.lengthMm} mm long · {placement.shape.ballWidthMm} mm wide
           </small>
         </div>
       </div>
+      <div className="measurement-heading">
+        <h3>Shoe size</h3>
+        <UnitToggles app={app} document={document} />
+      </div>
       <label className="field shoe-field">
-        <span>{document.shoeSystem} adult size</span>
+        <span className="sr-only">{document.shoeSystem} adult size</span>
         <select
           value={currentSize}
           onChange={(event) => {
@@ -272,23 +303,29 @@ function FootInspector({
           ))}
         </select>
       </label>
-      {error && <p className="field-error">{error}</p>}
-      <FootDimensions app={app} placement={placement} sex={entry.sex} />
-      <p className="measurement-note">
-        Size charts map to foot length. Averages come from the ANSUR II adult survey.
-        Brand fit and shoe shape vary.
+      <p className="field-help">
+        {!exactSize
+          ? 'Closest chart size to your custom foot length.'
+          : `${entry.sex === 'female' ? 'Women’s' : 'Men’s'} adult sizing · changes apply instantly.`}
       </p>
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
+      <FootDimensions app={app} placement={placement} sex={entry.sex} />
+      <div className="measurement-note">
+        <strong>Made to measure</strong>
+        <p>
+          Shoe size adjusts the foot, ankle and lower leg together. Chart sizes are a guide; brand
+          fit varies.
+        </p>
+      </div>
     </section>
   )
 }
 
-export function Inspector({
-  app,
-  document,
-}: {
-  app: CompareApp
-  document: CompareDocument
-}) {
+export function Inspector({ app, document }: { app: CompareApp; document: CompareDocument }) {
   return document.mode === 'height' ? (
     <HeightInspector
       key={`${document.height.selected ?? 'none'}-${document.heightUnit}`}
