@@ -165,3 +165,11 @@ The feet inspector offers White, Black, Hispanic and Asian color presets for eit
 Domain checks cover independent choices, size/reset retention, old saves and shared links. Model checks cover material isolation, unchanged geometry/nails, shared maps and cleanup. Desktop/mobile browser flows verify selection, previews, keyboard control, reloads and sharing. Production render coverage includes all four tones on both models alongside the existing sizing scenarios.
 
 Domain, models, kernel, lint, production build, budgets, UI flows and all eight rendering scenarios pass. The four-option control also fits a 320 px phone. [Four tones on independent pairs](renders/feet-skin-tones.png).
+
+## Follow-up: realistic female complexions (2026-10-17)
+
+White and Asian female presets previously multiplied the same tan color map by a UI-swatch ratio, leaving muddy or yellow-brown skin. Both now use independent Genesis 9 color, normal and roughness maps on the existing foot UV layout. The original toenails, geometry, sizing, opacity, other presets and saved choices are retained. Textures load on demand, use the correct sRGB/linear conventions and stay shared between matching pairs.
+
+The [analysis and before/after comparison](FEMALE_SKIN_REVIEW.md) records the skin-rendering research, photographic references, source materials and implementation limits. Reproducible cropping is guarded by the shipped UV hash. Model tests require independent maps, reject returning to a uniform color adjustment and cover material isolation/cleanup. Rendering coverage adds close-ups of each corrected preset. Optional maps add 229 kB of downloads and 24.1 MiB of decoded texture memory, within the existing budgets.
+
+Domain, models, kernel, lint, production build, budgets, desktop/mobile UI flows and all ten production rendering scenarios pass. Both corrected close-ups were visually inspected against the references.
