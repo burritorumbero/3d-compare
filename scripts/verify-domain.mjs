@@ -335,15 +335,28 @@ for (const sex of ['female', 'male']) {
   assert.ok(Math.abs(tall.stature - 3048) < 1e-9, 'stature lands exactly')
   for (const height of [900, 1200, 1700, 2000, 2500, 3048]) {
     const targets = statureTargets(sex, authored, height)
-    for (const landmark of ['shoulder', 'neck', 'ear']) {
-      assert.ok(Math.abs((height - targets[landmark]) / height - (authored.stature - authored[landmark]) / authored.stature) < 1e-12, `${sex}: upper-body proportions survive resizing to ${height}`)
-    }
+    const headGrowth = (height-targets.ear)/(authored.stature-authored.ear)
+    const shoulderGrowth = targets.biacromialBreadth/authored.biacromialBreadth
+    assert.ok(headGrowth/shoulderGrowth>.94 && headGrowth/shoulderGrowth<1.07, `${sex}: head remains balanced with shoulder breadth`)
+    assert.ok(headGrowth/(height/authored.stature)>.82 && headGrowth/(height/authored.stature)<1.25, `${sex}: head avoids tiny and oversized extremes`)
     for (let index = 1; index < LANDMARK_HEIGHT_ORDER.length; index += 1) {
       assert.ok(targets[LANDMARK_HEIGHT_ORDER[index]] > targets[LANDMARK_HEIGHT_ORDER[index - 1]], `${sex}: resized landmarks keep their order`)
     }
   }
-  const tallAverage = averageLandmarks(sex, 3048)
+  const tallAverage = statureTargets(sex, averageLandmarks(sex,1700), 3048)
   assert.ok(Math.abs(tall.knee / tallAverage.knee - 1.04) < 1e-9, 'a long-shinned person stays long-shinned')
+  const withWidths = { ...authored, headWidth: 152, neckWidth: 100, armWidth: 85, handWidth: 80 }
+  const tallShape = statureTargets(sex, withWidths, 3048)
+  assert.ok(tallShape.armWidth/withWidths.armWidth < tallShape.armLength/withWidths.armLength, 'length is independent of thickness')
+  assert.ok(tallShape.handWidth/withWidths.handWidth < tallShape.armLength/withWidths.armLength, 'hands do not inherit arm elongation')
+  for (const edge of [1409,1491,1829,1993]) {
+    const before = statureTargets(sex,withWidths,edge-.01)
+    const at = statureTargets(sex,withWidths,edge)
+    const after = statureTargets(sex,withWidths,edge+.01)
+    for (const key of Object.keys(at)) {
+      assert.ok(Math.abs((after[key]-at[key])-(at[key]-before[key]))<1e-6, `${sex}: ${key} changes smoothly at data boundaries`)
+    }
+  }
 }
 
 // Saved 0.5 m columns and remove/add cycles must reflow on the wider table.

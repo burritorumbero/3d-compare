@@ -1,12 +1,11 @@
 //! Parametric deformation and measurement solver for rigged meshes.
 //!
-//! A rig is a hierarchy of deform bones whose rest rotation is the identity, so
-//! every bone transform is an axis-aligned scale about the bone head, composed
-//! down the chain. A bone either inherits its parent's scale (a foot's toes grow
-//! with the foot) or keeps only its own while still moving with its parent (a
+//! A rig is a hierarchy of deform bones with optional anatomical scale bases.
+//! Every bone scales about its head in that basis. A bone either inherits its
+//! parent's deformation (a foot's toes grow with the foot) or keeps only its own while still moving with its parent (a
 //! longer shin lifts the thigh without stretching it). Feet rigs put bone heads on
-//! the floor; body rigs chain upward from a root on the floor, so soles stay down. The same transforms drive the GPU through
-//! three.js bone scales; this module evaluates them on the CPU for the few
+//! the floor; body rigs chain upward from a root on the floor, so soles stay down.
+//! The same transforms drive the GPU through three.js local affine matrices; this module evaluates them on the CPU for the few
 //! vertices that measurements and bounds need, and solves the inverse problem:
 //! which control values make the mesh measure what the user asked for.
 //!
@@ -31,12 +30,50 @@ pub enum Measure {
     Max { group: usize, axis: usize },
     /// Distance along an axis between the centroids of two groups.
     Between { from: usize, to: usize, axis: usize },
+    /// Euclidean distance between the centroids of two surface groups.
+    Distance { from: usize, to: usize },
+    /// Sum of posed joint-to-joint lengths along an ancestor/descendant chain.
+    BonePath { from: usize, to: usize },
+}
+
+/// Column-major 3x3 matrix, matching three.js / GLSL storage.
+pub type Mat3 = [f64; 9];
+pub const IDENTITY: Mat3 = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+
+#[inline(never)]
+fn apply(m: Mat3, v: [f64; 3]) -> [f64; 3] {
+    std::array::from_fn(|row| (0..3).map(|k| m[k * 3 + row] * v[k]).sum())
+}
+
+#[inline(never)]
+fn multiply(a: Mat3, b: Mat3) -> Mat3 {
+    std::array::from_fn(|i| (0..3).map(|k| a[k * 3 + i % 3] * b[i / 3 * 3 + k]).sum())
+}
+
+fn transpose(m: Mat3) -> Mat3 {
+    std::array::from_fn(|i| m[i % 3 * 3 + i / 3])
+}
+
+fn inverse(m: Mat3) -> Mat3 {
+    let cofactor = [
+        m[4] * m[8] - m[5] * m[7], m[5] * m[6] - m[3] * m[8], m[3] * m[7] - m[4] * m[6],
+        m[7] * m[2] - m[8] * m[1], m[8] * m[0] - m[6] * m[2], m[6] * m[1] - m[7] * m[0],
+        m[1] * m[5] - m[2] * m[4], m[2] * m[3] - m[0] * m[5], m[0] * m[4] - m[1] * m[3],
+    ];
+    let determinant = m[0] * cofactor[0] + m[1] * cofactor[1] + m[2] * cofactor[2];
+    transpose(cofactor).map(|v| v / determinant)
+}
+
+fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
+    (0..3).map(|axis| (a[axis] - b[axis]).powi(2)).sum::<f64>().sqrt()
 }
 
 #[derive(Clone, Debug)]
 pub struct Rig {
     pub parents: Vec<i32>,
     pub heads: Vec<[f64; 3]>,
+    /// Orthonormal columns in rest mesh space; identity for axis-aligned bones.
+    pub bases: Vec<Mat3>,
     /// Per bone: whether its world scale includes its parent's scale.
     pub inherit_scale: Vec<bool>,
     pub positions: Vec<[f64; 3]>,
@@ -70,13 +107,12 @@ fn invalid<T>(message: impl Into<String>) -> Result<T, RigError> {
     Err(RigError::Invalid(message.into()))
 }
 
-/// Bone scales and morph weights for a set of controls: what the GPU needs.
+/// Affine bone transforms and morph weights for a set of controls.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pose {
-    /// Local scale per bone, as `bone.scale` in a three.js hierarchy.
-    pub bone_scales: Vec<[f64; 3]>,
-    /// World scale per bone: its own scale, times its parent's when it inherits.
-    pub world_scales: Vec<[f64; 3]>,
+    /// Full local matrix per bone, including its rest parent-to-child translation.
+    pub bone_matrices: Vec<[f64; 16]>,
+    pub world_linear: Vec<Mat3>,
     pub morph_weights: Vec<f64>,
 }
 
@@ -111,8 +147,14 @@ pub struct Problem<'a> {
 impl Rig {
     pub fn validate(&self) -> Result<(), RigError> {
         let bones = self.parents.len();
-        if self.heads.len() != bones || self.inherit_scale.len() != bones {
-            return invalid("Every bone needs a head position and an inherit flag.");
+        if self.heads.len() != bones || self.inherit_scale.len() != bones || self.bases.len() != bones {
+            return invalid("Every bone needs a head position, scale basis and inherit flag.");
+        }
+        for basis in &self.bases {
+            let gram = multiply(transpose(*basis), *basis);
+            if basis.iter().any(|v| !v.is_finite()) || gram.iter().zip(IDENTITY).any(|(a,b)| (a-b).abs() > 1e-5) {
+                return invalid("Bone scale bases must be finite and orthonormal.");
+            }
         }
         for (index, &parent) in self.parents.iter().enumerate() {
             if parent >= index as i32 || parent < -1 {
@@ -156,6 +198,14 @@ impl Rig {
             let ok = match *measure {
                 Measure::Extent { group, axis } | Measure::Max { group, axis } => group < groups && axis < 3,
                 Measure::Between { from, to, axis } => from < groups && to < groups && axis < 3,
+                Measure::Distance { from, to } => from < groups && to < groups,
+                Measure::BonePath { from, to } => {
+                    let mut cursor = to as i32;
+                    if from >= bones || to >= bones || from == to { false } else {
+                        while cursor >= 0 && cursor as usize != from { cursor = self.parents[cursor as usize]; }
+                        cursor == from as i32
+                    }
+                }
             };
             if !ok {
                 return invalid("A measure names a missing group or axis.");
@@ -187,38 +237,51 @@ impl Rig {
         for weight in &mut morph_weights {
             *weight = weight.clamp(0.0, 1.0);
         }
-        let mut world_scales: Vec<[f64; 3]> = Vec::with_capacity(own.len());
-        let mut bone_scales = Vec::with_capacity(own.len());
+        let mut world_linear: Vec<Mat3> = Vec::with_capacity(own.len());
+        let mut bone_matrices = Vec::with_capacity(own.len());
         for (bone, &parent) in self.parents.iter().enumerate() {
-            let parent_world = if parent < 0 { [1.0; 3] } else { world_scales[parent as usize] };
+            let parent_world = if parent < 0 { IDENTITY } else { world_linear[parent as usize] };
+            let basis = self.bases[bone];
+            let scaled_basis = std::array::from_fn(|i| basis[i] * own[bone][i / 3]);
+            let own_linear = multiply(scaled_basis, transpose(basis));
             let world = if self.inherit_scale[bone] {
-                [parent_world[0] * own[bone][0], parent_world[1] * own[bone][1], parent_world[2] * own[bone][2]]
+                multiply(parent_world, own_linear)
             } else {
-                own[bone]
+                own_linear
             };
-            // three.js composes local scales down the hierarchy, so a bone that keeps
-            // only its own scale divides out its parent's.
-            bone_scales.push([world[0] / parent_world[0], world[1] / parent_world[1], world[2] / parent_world[2]]);
-            world_scales.push(world);
+            // Oriented anisotropy needs matrix compensation: component-wise division
+            // would introduce shear/scale errors when the parent has a different basis.
+            let local = multiply(inverse(parent_world), world);
+            let parent_head = if parent < 0 { [0.0; 3] } else { self.heads[parent as usize] };
+            let translation: [f64; 3] = std::array::from_fn(|axis| self.heads[bone][axis] - parent_head[axis]);
+            bone_matrices.push([
+                local[0], local[1], local[2], 0.0,
+                local[3], local[4], local[5], 0.0,
+                local[6], local[7], local[8], 0.0,
+                translation[0], translation[1], translation[2], 1.0,
+            ]);
+            world_linear.push(world);
         }
-        Pose { bone_scales, world_scales, morph_weights }
+        Pose { bone_matrices, world_linear, morph_weights }
     }
 
-    /// Skinning transforms as v -> scale * v + offset, composed parent first.
-    fn skin_transforms(&self, pose: &Pose) -> Vec<([f64; 3], [f64; 3])> {
-        let mut transforms: Vec<([f64; 3], [f64; 3])> = Vec::with_capacity(self.parents.len());
+    /// Skinning transforms as v -> linear * v + offset, composed parent first.
+    fn skin_transforms(&self, pose: &Pose) -> Vec<(Mat3, [f64; 3])> {
+        let mut transforms: Vec<(Mat3, [f64; 3])> = Vec::with_capacity(self.parents.len());
         for (bone, &parent) in self.parents.iter().enumerate() {
             let (parent_scale, parent_offset) = if parent < 0 {
-                ([1.0; 3], [0.0; 3])
+                (IDENTITY, [0.0; 3])
             } else {
                 transforms[parent as usize]
             };
             // The head rides on the parent's transform; the bone scales about it.
-            let scale = pose.world_scales[bone];
+            let scale = pose.world_linear[bone];
             let head = self.heads[bone];
+            let parent_point = apply(parent_scale, head);
+            let own_point = apply(scale, head);
             let mut offset = [0.0; 3];
             for axis in 0..3 {
-                offset[axis] = parent_scale[axis] * head[axis] + parent_offset[axis] - scale[axis] * head[axis];
+                offset[axis] = parent_point[axis] + parent_offset[axis] - own_point[axis];
             }
             transforms.push((scale, offset));
         }
@@ -255,8 +318,9 @@ impl Rig {
                         continue;
                     }
                     let (scale, offset) = transforms[self.skin_bones[vertex][slot]];
+                    let point = apply(scale, morphed);
                     for axis in 0..3 {
-                        deformed[axis] += weight * (scale[axis] * morphed[axis] + offset[axis]);
+                        deformed[axis] += weight * (point[axis] + offset[axis]);
                     }
                 }
                 deformed
@@ -266,7 +330,7 @@ impl Rig {
 
     pub fn evaluate(&self, controls: &[f64]) -> Evaluation {
         let points = self.deform(controls);
-        let measures = self.measure(&points);
+        let measures = self.measure(&points, controls);
         let mut bounds = [f64::INFINITY, f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY];
         for &vertex in &self.groups[self.hull_group] {
             for axis in 0..3 {
@@ -284,16 +348,23 @@ impl Rig {
         for measure in &self.measures {
             match *measure {
                 Measure::Extent { group, .. } | Measure::Max { group, .. } => mark(group),
-                Measure::Between { from, to, .. } => {
+                Measure::Between { from, to, .. } | Measure::Distance { from, to } => {
                     mark(from);
                     mark(to);
                 }
+                Measure::BonePath { .. } => {},
             }
         }
         mask
     }
 
-    fn measure(&self, points: &[[f64; 3]]) -> Vec<f64> {
+    fn measure(&self, points: &[[f64; 3]], controls: &[f64]) -> Vec<f64> {
+        let transforms = self.skin_transforms(&self.pose(controls));
+        let joint = |bone: usize| {
+            let (linear, offset) = transforms[bone];
+            let point = apply(linear, self.heads[bone]);
+            std::array::from_fn(|axis| point[axis] + offset[axis])
+        };
         let span = |group: usize, axis: usize| {
             self.groups[group].iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), &vertex| {
                 (low.min(points[vertex][axis]), high.max(points[vertex][axis]))
@@ -312,6 +383,20 @@ impl Rig {
                 }
                 Measure::Max { group, axis } => span(group, axis).1,
                 Measure::Between { from, to, axis } => (centroid(to, axis) - centroid(from, axis)).abs(),
+                Measure::Distance { from, to } => distance(
+                    std::array::from_fn(|axis| centroid(from, axis)),
+                    std::array::from_fn(|axis| centroid(to, axis)),
+                ),
+                Measure::BonePath { from, to } => {
+                    let mut length = 0.0;
+                    let mut cursor = to;
+                    while cursor != from {
+                        let parent = self.parents[cursor] as usize;
+                        length += distance(joint(cursor), joint(parent));
+                        cursor = parent;
+                    }
+                    length
+                },
             })
             .collect()
     }
@@ -324,7 +409,7 @@ impl Rig {
 
     /// Residuals in millimeter-scaled units: targeted measures first, then the prior.
     fn residuals(&self, problem: &Problem, controls: &[f64], mask: &[bool]) -> (Vec<f64>, Vec<f64>) {
-        let measures = self.measure(&self.deform_only(controls, Some(mask)));
+        let measures = self.measure(&self.deform_only(controls, Some(mask)), controls);
         let mut residuals = Vec::with_capacity(problem.targets.len() + controls.len());
         for (measured, target) in measures.iter().zip(problem.targets) {
             if let Some(target) = target {
@@ -477,6 +562,7 @@ mod tests {
         Rig {
             parents: vec![-1, 0],
             heads: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 0.7]],
+            bases: vec![IDENTITY; 2],
             inherit_scale: vec![true, true],
             positions,
             skin_bones,
@@ -533,6 +619,7 @@ mod tests {
         Rig {
             parents: vec![-1, 0],
             heads: vec![[0.0, 0.0, 0.0], [0.0, 0.5, 0.0]],
+            bases: vec![IDENTITY; 2],
             inherit_scale: vec![true, false],
             positions: vec![[0.0, 0.5, 0.0], [0.0, 0.9, 0.0], [0.1, 0.9, 0.0]],
             skin_bones: vec![[0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]],
@@ -561,8 +648,42 @@ mod tests {
         assert!(close(points[2][0] - points[1][0], 0.1), "the thigh does not inherit the shin's width");
         // three.js needs the thigh's local scale to divide out the shin's.
         let pose = rig.pose(&[2.0, 1.5]);
-        assert_eq!(pose.world_scales[1], [1.0, 1.5, 1.0]);
-        assert_eq!(pose.bone_scales[1], [0.5, 0.75, 1.0]);
+        assert_eq!(pose.world_linear[1], [1.0, 0.0, 0.0, 0.0, 1.5, 0.0, 0.0, 0.0, 1.0]);
+        assert_eq!(pose.bone_matrices[1], [0.5, 0.0, 0.0, 0.0, 0.0, 0.75, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn angled_limb_grows_along_its_axis_without_widening_or_inheriting_scale() {
+        let mut rig = column();
+        let c = 0.5_f64.sqrt();
+        // Its local y axis is diagonal in XY. Local x is its cross-section.
+        rig.bases[1] = [c, -c, 0.0, c, c, 0.0, 0.0, 0.0, 1.0];
+        rig.positions[1] = [0.4*c, 0.5+0.4*c, 0.0];
+        rig.positions[2] = [0.5*c, 0.5+0.3*c, 0.0];
+        rig.validate().unwrap();
+        let points = rig.deform(&[2.0, 1.5]);
+        assert!(close(points[1][0], 0.6*c));
+        assert!(close(points[1][1], 1.0+0.6*c));
+        assert!(close(distance(points[1], points[2]), 0.1));
+        let pose = rig.pose(&[2.0, 1.5]);
+        let local = pose.bone_matrices[1];
+        let linear = [local[0],local[1],local[2],local[4],local[5],local[6],local[8],local[9],local[10]];
+        let composed = multiply(pose.world_linear[0], linear);
+        for (a,b) in composed.iter().zip(pose.world_linear[1]) { assert!(close(*a,b)); }
+        rig.bases[1][0] = 4.0;
+        assert!(rig.validate().is_err());
+    }
+
+    #[test]
+    fn joint_paths_and_surface_distances_measure_different_dimensions() {
+        let mut rig = column();
+        rig.measures = vec![Measure::BonePath { from: 0, to: 1 }, Measure::Distance { from: 0, to: 1 }];
+        rig.validate().unwrap();
+        let measured = rig.evaluate(&[2.0, 1.5]).measures;
+        assert!(close(measured[0], 1.0), "parent extension moves the joint");
+        assert!(close(measured[1], 0.05), "centroid distance uses all coordinates");
+        rig.measures[0] = Measure::BonePath { from: 1, to: 0 };
+        assert!(rig.validate().is_err(), "paths must follow the parent chain");
     }
 
     #[test]

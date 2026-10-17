@@ -14,7 +14,9 @@ crate-type = ["cdylib", "rlib"]
 wasm-bindgen = "=0.2.129"
 
 [profile.release]
-opt-level = "s"
+# Affine limb transforms fit the existing 90 kB / 35 kB gzip download budget.
+# Solver timing is exercised on the shipped rigs by verify:kernel.
+opt-level = "z"
 lto = true
 codegen-units = 1
 panic = "abort"

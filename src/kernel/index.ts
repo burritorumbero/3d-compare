@@ -20,8 +20,8 @@ export type Bounds = {
 }
 
 export type RigPose = {
-  /** Local x, y, z scale per bone in rig order: set as `bone.scale` in three.js. */
-  boneScales: readonly (readonly [number, number, number])[]
+  /** Full local column-major affine matrix per bone, including translation. */
+  boneMatrices: readonly (readonly number[])[]
   morphWeights: readonly number[]
 }
 
@@ -63,6 +63,7 @@ export class RigSolver {
       encoded.parents,
       encoded.heads,
       encoded.inheritScale,
+      encoded.bases,
       encoded.positions,
       encoded.skinBones,
       encoded.skinWeights,
@@ -98,14 +99,11 @@ export class RigSolver {
     return { measures: this.named(this.measureNames, values), bounds: this.bounds(values, this.measureNames.length) }
   }
 
-  /** Bone scales and morph weights to apply to the three.js skeleton and mesh. */
+  /** Local affine bone matrices and morph weights for the renderer. */
   pose(controls: Readonly<Record<string, number>>): RigPose {
     const values = this.kernel.pose(this.controlArray(controls))
-    const boneScales = Array.from({ length: this.boneCount }, (_, bone) => {
-      const at = bone * 3
-      return [values[at], values[at + 1], values[at + 2]] as const
-    })
-    return { boneScales, morphWeights: Array.from(values.subarray(this.boneCount * 3)) }
+    const boneMatrices = Array.from({ length: this.boneCount }, (_, bone) => Array.from(values.subarray(bone * 16, bone * 16 + 16)))
+    return { boneMatrices, morphWeights: Array.from(values.subarray(this.boneCount * 16)) }
   }
 
   /** Finds controls that make the named measures hit their targets. Unnamed measures are free. */

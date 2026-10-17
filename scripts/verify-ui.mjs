@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
+import sharp from 'sharp'
 import { launchChrome } from './browser.mjs'
 
 const baseUrl = process.env.APP_URL ?? 'http://127.0.0.1:43123'
@@ -8,34 +9,12 @@ const artifactDir = process.env.ARTIFACT_DIR ?? '/tmp/3d-compare-verification'
 await mkdir(artifactDir, { recursive: true })
 
 async function captureWebGlFrame(page, filename) {
-  const frame = await page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        requestAnimationFrame(() => {
-          const canvas = document.querySelector('#compare-stage canvas')
-          const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
-          const pixels = new Uint8Array(canvas.width * canvas.height * 4)
-          gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-          let minimum = 765
-          let maximum = 0
-          let samples = 0
-          for (let index = 0; index < pixels.length; index += 64) {
-            const sum = pixels[index] + pixels[index + 1] + pixels[index + 2]
-            minimum = Math.min(minimum, sum)
-            maximum = Math.max(maximum, sum)
-            samples += 1
-          }
-          resolve({
-            dataUrl: canvas.toDataURL('image/png'),
-            contrast: maximum - minimum,
-            samples,
-          })
-        })
-      }),
-  )
-  assert.ok(frame.samples > 1000)
-  assert.ok(frame.contrast > 100, `WebGL frame contrast was only ${frame.contrast}.`)
-  await writeFile(`${artifactDir}/${filename}`, Buffer.from(frame.dataUrl.split(',')[1], 'base64'))
+  // Use the compositor's captured frame. A second synchronous readPixels on
+  // the ten-person software-WebGL scene can stall Chrome's GPU indefinitely.
+  const pixels = await page.locator('#compare-stage canvas').screenshot({ timeout: 60_000 })
+  const stats = await sharp(pixels).stats()
+  assert.ok(stats.channels.slice(0, 3).some(channel => channel.max - channel.min > 100), 'WebGL frame contains visible geometry.')
+  await writeFile(`${artifactDir}/${filename}`, pixels)
 }
 
 /** The selected figure's label mounts once its model is loaded; then wait for every download to settle. */

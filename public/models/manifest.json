@@ -10,7 +10,7 @@
     "color": "#5d5d60",
     "url": "/models/female-tan-dress.glb",
     "preview": "/previews/female-tan-dress.png",
-    "bytes": 4668636,
+    "bytes": 4641480,
     "triangles": 150626,
     "meshCount": 7,
     "dimensionsMeters": [
@@ -36,7 +36,7 @@
     "color": "#5b7fb0",
     "url": "/models/female-dark-jeans-tshirt.glb",
     "preview": "/previews/female-dark-jeans-tshirt.png",
-    "bytes": 4019892,
+    "bytes": 4008920,
     "triangles": 188408,
     "meshCount": 8,
     "dimensionsMeters": [
@@ -62,7 +62,7 @@
     "color": "#4f6f96",
     "url": "/models/female-pale-shorts-croptop.glb",
     "preview": "/previews/female-pale-shorts-croptop.png",
-    "bytes": 4253112,
+    "bytes": 4239948,
     "triangles": 162877,
     "meshCount": 8,
     "dimensionsMeters": [
@@ -88,7 +88,7 @@
     "color": "#2b2b2d",
     "url": "/models/male-tan-shorts-tshirt.glb",
     "preview": "/previews/male-tan-shorts-tshirt.png",
-    "bytes": 3665572,
+    "bytes": 3656180,
     "triangles": 161201,
     "meshCount": 8,
     "dimensionsMeters": [
@@ -114,7 +114,7 @@
     "color": "#3d5a80",
     "url": "/models/male-dark-jeans-sleeveless.glb",
     "preview": "/previews/male-dark-jeans-sleeveless.png",
-    "bytes": 3883656,
+    "bytes": 3887252,
     "triangles": 175529,
     "meshCount": 10,
     "dimensionsMeters": [
@@ -140,7 +140,7 @@
     "color": "#8d8f93",
     "url": "/models/male-pale-trousers-shirt.glb",
     "preview": "/previews/male-pale-trousers-shirt.png",
-    "bytes": 4534108,
+    "bytes": 4547268,
     "triangles": 221648,
     "meshCount": 11,
     "dimensionsMeters": [

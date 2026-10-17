@@ -29,6 +29,7 @@ pub fn decode_rig(
     parents: &[i32],
     heads: &[f64],
     inherit_scale: &[u8],
+    bases: &[f64],
     positions: &[f64],
     skin_bones: &[u32],
     skin_weights: &[f64],
@@ -96,14 +97,20 @@ pub fn decode_rig(
                 0 => Ok(Measure::Extent { group: a, axis }),
                 1 => Ok(Measure::Max { group: a, axis }),
                 2 => Ok(Measure::Between { from: a, to: b, axis }),
-                _ => Err(RigError::Invalid("A measure kind must be 0, 1, or 2.".into())),
+                3 => Ok(Measure::Distance { from: a, to: b }),
+                4 => Ok(Measure::BonePath { from: a, to: b }),
+                _ => Err(RigError::Invalid("A measure kind must be 0 through 4.".into())),
             }
         })
         .collect::<Result<_, _>>()?;
 
+    if bases.len() != parents.len() * 9 {
+        return Err(RigError::Invalid("Bone bases need nine values per bone.".into()));
+    }
     let rig = Rig {
         parents: parents.to_vec(),
         heads: triples(heads, "Bone heads")?,
+        bases: bases.chunks_exact(9).map(|v| v.try_into().unwrap()).collect(),
         inherit_scale: inherit_scale.iter().map(|&flag| flag != 0).collect(),
         positions,
         skin_bones: skin_bones.chunks_exact(4).map(|s| [s[0] as usize, s[1] as usize, s[2] as usize, s[3] as usize]).collect(),
@@ -136,6 +143,7 @@ impl Kernel {
         parents: &[i32],
         heads: &[f64],
         inherit_scale: &[u8],
+        bases: &[f64],
         positions: &[f64],
         skin_bones: &[u32],
         skin_weights: &[f64],
@@ -149,7 +157,7 @@ impl Kernel {
         hull_group: u32,
     ) -> Result<Kernel, JsError> {
         decode_rig(
-            parents, heads, inherit_scale, positions, skin_bones, skin_weights, morph_count, morph_deltas, channels, control_bounds,
+            parents, heads, inherit_scale, bases, positions, skin_bones, skin_weights, morph_count, morph_deltas, channels, control_bounds,
             group_offsets, group_members, measures, hull_group,
         )
         .map(|rig| Kernel { rig })
@@ -174,11 +182,11 @@ impl Kernel {
         }
     }
 
-    /// Local bone scales for three.js (x, y, z per bone) followed by morph weights.
+    /// Local column-major affine bone matrices (16 values each), then morph weights.
     pub fn pose(&self, controls: &[f64]) -> Result<Vec<f64>, JsError> {
         self.check_controls(controls)?;
         let pose = self.rig.pose(controls);
-        Ok(pose.bone_scales.iter().flatten().copied().chain(pose.morph_weights).collect())
+        Ok(pose.bone_matrices.iter().flatten().copied().chain(pose.morph_weights).collect())
     }
 
     /// Measures followed by the six bounds (min xyz, max xyz).
@@ -219,6 +227,7 @@ mod tests {
             &[-1],
             &[0.0, 0.0, 0.0],
             &[1],
+            &crate::core::IDENTITY,
             &[0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
             &[0, 0, 0, 0, 0, 0, 0, 0],
             &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
@@ -237,7 +246,7 @@ mod tests {
 
     #[test]
     fn rejects_ragged_arrays() {
-        let result = decode_rig(&[-1], &[0.0, 0.0, 0.0], &[1], &[0.0, 0.0], &[], &[], 0, &[], &[], &[], &[0], &[], &[], 0);
+        let result = decode_rig(&[-1], &[0.0, 0.0, 0.0], &[1], &crate::core::IDENTITY, &[0.0, 0.0], &[], &[], 0, &[], &[], &[], &[0], &[], &[], 0);
         assert!(result.is_err());
     }
 }
