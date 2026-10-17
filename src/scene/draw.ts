@@ -2,6 +2,7 @@ import { footEntry } from '../catalog/feet.ts'
 import { humanEntry } from '../catalog/humans.ts'
 import { humanDisplayName } from '../catalog/names.ts'
 import type { FootCatalogId, HumanCatalogId, ModelAsset, Sex } from '../domain/catalog.ts'
+import type { FootSkinTone } from '../domain/foot-skin.ts'
 import type { PlacedFoot } from '../domain/feet-world.ts'
 import type { PlacedHuman } from '../domain/height-world.ts'
 import type { PlacementId } from '../domain/ids.ts'
@@ -40,6 +41,7 @@ export type FootDraw = {
   referenceLengthM: number
   /** The dimensions the kernel solves the rigged pair to. */
   shape: FootShape
+  skinTone: FootSkinTone
   /** Foot length over the authored length: sizes the stand-in while the pair loads. */
   lengthScale: number
   position: readonly [number, 0, number]
@@ -124,6 +126,7 @@ export function toFootDraw(
     model: entry.model,
     referenceLengthM: entry.referenceFootLengthMm / 1000,
     shape: placement.shape,
+    skinTone: placement.skinTone,
     lengthScale: footScale(entry.referenceFootLengthMm, placement.shape.lengthMm),
     position: [lineup.x, 0, lineup.z],
     yaw: placement.pose.yaw,

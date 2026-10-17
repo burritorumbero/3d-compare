@@ -231,6 +231,17 @@ try {
     .evaluate((button) => button.click())
   assert.equal(await page.locator('.lineup-list li').count(), 1)
 
+  // Native radios support keyboard selection; previews and the model follow.
+  assert.deepEqual(await page.getByRole('radio').evaluateAll((radios) => radios.map((radio) => radio.labels[0].textContent.trim())), ['White', 'Black', 'Hispanic', 'Asian'])
+  assert.equal(await page.getByRole('radio', { name: 'Hispanic', exact: true }).isChecked(), true)
+  await page.getByRole('radio', { name: 'Hispanic', exact: true }).focus()
+  await page.keyboard.press('ArrowRight')
+  assert.equal(await page.getByRole('radio', { name: 'Asian', exact: true }).isChecked(), true)
+  await page.getByText('Black', { exact: true }).click()
+  assert.equal(await page.getByRole('radio', { name: 'Black', exact: true }).isChecked(), true)
+  assert.match(await page.locator('.selection-summary img').getAttribute('src'), /female-feet-shins-black.webp$/)
+  assert.match(await page.locator('.lineup-select img').getAttribute('src'), /female-feet-shins-black.webp$/)
+
   await page.getByRole('button', { name: 'EU', exact: true }).evaluate((button) => button.click())
   await page.locator('.shoe-field select').selectOption('40')
   assert.equal(await page.locator('.selection-summary strong').innerText(), 'EU 40')
@@ -261,6 +272,7 @@ try {
   await page.getByRole('button', { name: 'Add feet', exact: true }).click()
   await page.locator('.feet-catalog .catalog-card').nth(1).evaluate((button) => button.click())
   assert.equal(await page.locator('.lineup-list li').count(), 2)
+  assert.equal(await page.getByRole('radio', { name: 'White', exact: true }).isChecked(), true)
   await page.locator('.shoe-field select').selectOption('22')
   assert.match(await page.locator('.selection-summary small').innerText(), /374 mm/)
   await page
@@ -284,7 +296,7 @@ try {
   assert.ok(link.startsWith(`${baseUrl}/?`), `Share link should point at the app: ${link}`)
   assert.match(link, /mode=feet/)
   assert.match(link, /h=female-tan-dress:1900:Mom/)
-  assert.match(link, /f=foot-female:249:t70,foot-male:374/)
+  assert.match(link, /f=foot-female:249:sblack:t70,foot-male:374/)
 
   // Responsive stage: phone and tablet viewports size the stage to the screen.
   await page.setViewportSize({ width: 390, height: 844 })
@@ -298,7 +310,9 @@ try {
   await page.locator('.lineup-select').first().click()
   assert.equal(await page.locator('.detail-column').isVisible(), true, 'selecting a model opens its measurements on mobile')
   assert.equal(await page.locator('.inspector-panel h2').innerText(), 'Female feet')
+  assert.equal(await page.getByRole('radio', { name: 'Black', exact: true }).isChecked(), true, 'saved tone survives a reload and selection change')
   await page.locator('.dimension-toeLength .dimension-reset').click()
+  assert.equal(await page.getByRole('radio', { name: 'Black', exact: true }).isChecked(), true, 'shape reset keeps the chosen tone')
   assert.equal(await page.locator('.dimension-status').count(), 3)
   await page.getByRole('button', { name: 'Lineup 2', exact: true }).click()
   await page.getByRole('button', { name: 'Remove Female feet', exact: true }).click()
@@ -307,6 +321,8 @@ try {
   await page.getByRole('button', { name: 'Add female feet', exact: true }).click()
   assert.equal(await page.locator('.detail-column').isVisible(), true)
   assert.equal(await page.locator('.lineup-list li').count(), 2)
+  await page.getByText('Asian', { exact: true }).click()
+  assert.equal(await page.getByRole('radio', { name: 'Asian', exact: true }).isChecked(), true, 'skin controls are usable on a phone')
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth)
   assert.ok(scrollWidth <= 390, `Mobile layout overflows to ${scrollWidth}px.`)
   const phoneStage = await stageHeight(page)
@@ -340,6 +356,8 @@ try {
   assert.equal(new URL(guest.url()).search, '', 'Share query should be cleared after import.')
   assert.equal(await guest.locator('.lineup-list li').count(), 2)
   assert.match(await guest.locator('.lineup-list li small').nth(1).innerText(), /US 22/)
+  await guest.locator('.lineup-select').first().click()
+  assert.equal(await guest.getByRole('radio', { name: 'Black', exact: true }).isChecked(), true, 'shared links retain skin tone')
   await guest.locator('.mode-switch button').first().evaluate((button) => button.click())
   assert.equal(await guest.locator('.lineup-list li').count(), 10)
   assert.equal(await guest.locator('.lineup-list li strong').first().innerText(), 'Mom')

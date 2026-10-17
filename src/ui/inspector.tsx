@@ -15,7 +15,8 @@ import {
 import { formatShoe, shoeRows } from '../domain/shoe-charts.ts'
 import { FootDimensions } from './foot-dimensions.tsx'
 import { FootIcon, PersonIcon, ResetIcon } from './icons.tsx'
-import { ModelPreview } from './model-preview.tsx'
+import { SkinTonePicker } from './skin-tone-picker.tsx'
+import { ModelPreview, FootModelPreview } from './model-preview.tsx'
 import { UnitToggles } from './unit-toggles.tsx'
 import { closestShoeSize, heightInCentimeters, splitImperialHeight } from './size-codec.ts'
 
@@ -271,7 +272,7 @@ function FootInspector({ app, document }: { app: CompareApp; document: CompareDo
       </div>
       <div className="selection-summary">
         <span className="selection-avatar">
-          <ModelPreview model={entry.model} />
+          <FootModelPreview placement={placement} />
         </span>
         <div>
           <strong>{formatShoe(placement.shape.lengthMm, document.shoeSystem, entry.sex)}</strong>
@@ -280,6 +281,7 @@ function FootInspector({ app, document }: { app: CompareApp; document: CompareDo
           </small>
         </div>
       </div>
+      <SkinTonePicker app={app} placement={placement} />
       <div className="measurement-heading">
         <h3>Shoe size</h3>
         <UnitToggles app={app} document={document} />

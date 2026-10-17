@@ -64,7 +64,7 @@
       "file": "female-feet-shins.glb",
       "glbBytes": 2411084,
       "rigBytes": 310750,
-      "previewBytes": 7336,
+      "previewBytes": 28180,
       "triangles": 40544,
       "drawCalls": 4,
       "textures": 5,
@@ -74,7 +74,7 @@
       "file": "male-feet-shins.glb",
       "glbBytes": 2312084,
       "rigBytes": 267757,
-      "previewBytes": 8078,
+      "previewBytes": 30930,
       "triangles": 41288,
       "drawCalls": 4,
       "textures": 5,
@@ -83,14 +83,14 @@
   ],
   "assets": [
     {
-      "file": "index-CaJfikAD.css",
-      "bytes": 28672,
-      "gzipBytes": 6880
+      "file": "index-BxjYLDsR.css",
+      "bytes": 29829,
+      "gzipBytes": 7112
     },
     {
-      "file": "index-U8J4Z_1d.js",
-      "bytes": 336419,
-      "gzipBytes": 102061
+      "file": "index-jWdWNDRm.js",
+      "bytes": 338702,
+      "gzipBytes": 102714
     },
     {
       "file": "kernel_bg-C2gzpbkm.wasm",
@@ -114,10 +114,10 @@
     }
   ],
   "totals": {
-    "javascriptBytes": 1253522,
-    "javascriptGzipBytes": 345588,
+    "javascriptBytes": 1255805,
+    "javascriptGzipBytes": 346241,
     "allModelBytes": 29748144,
-    "allPreviewBytes": 79256,
+    "allPreviewBytes": 122952,
     "allTextureBytes": 768722916,
     "maxHeightTriangles": 2216480,
     "maxHeightDrawCalls": 340,

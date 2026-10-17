@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
+import { defaultFootSkinTone, FOOT_SKIN_TONES } from '../src/domain/foot-skin.ts'
 import { launchChrome } from './browser.mjs'
 
 const baseUrl = process.env.APP_URL ?? 'http://127.0.0.1:43123'
@@ -14,9 +15,13 @@ try {
   )
   await page.goto(`${baseUrl}/__model_previews`)
   await mkdir('public/previews', { recursive: true })
-  for (const entry of [...HUMAN_CATALOG, ...FEET_CATALOG]) {
+  const entries = process.argv.includes('--feet-only') ? FEET_CATALOG : [...HUMAN_CATALOG, ...FEET_CATALOG]
+  const variants = entries.flatMap((entry) => entry.id.startsWith('foot-')
+    ? FOOT_SKIN_TONES.map((skinTone) => ({ entry, skinTone }))
+    : [{ entry, skinTone: undefined }])
+  for (const { entry, skinTone } of variants) {
     const image = await page.evaluate(
-      async ({ file, feet }) => {
+      async ({ file, feet, catalogId, skinTone }) => {
         const THREE = await import('/node_modules/three/build/three.module.js')
         const { GLTFLoader } = await import(
           '/node_modules/three/examples/jsm/loaders/GLTFLoader.js'
@@ -50,6 +55,13 @@ try {
               }
             }
         })
+        let restoreMaterials = () => {}
+        if (feet) {
+          const { applyFootSkinTone } = await import('/src/scene/feet/skin-materials.ts')
+          const meshes = []
+          model.traverse((child) => { if (child.isMesh) meshes.push(child) })
+          restoreMaterials = applyFootSkinTone(meshes, catalogId, skinTone)
+        }
         scene.add(model)
         const bounds = new THREE.Box3().setFromObject(model)
         const size = bounds.getSize(new THREE.Vector3())
@@ -76,6 +88,7 @@ try {
         scene.add(fill)
         renderer.render(scene, camera)
         const data = renderer.domElement.toDataURL('image/png')
+        restoreMaterials()
         scene.traverse((child) => {
           if (child.isMesh) {
             child.geometry.dispose()
@@ -91,9 +104,10 @@ try {
         renderer.forceContextLoss()
         return data
       },
-      { file: entry.model.file, feet: entry.id.startsWith('foot-') },
+      { file: entry.model.file, feet: entry.id.startsWith('foot-'), catalogId: entry.id, skinTone },
     )
-    const file = `public/previews/${entry.model.file.replace('.glb', '.webp')}`
+    const suffix = skinTone && skinTone !== defaultFootSkinTone(entry.id) ? `-${skinTone}` : ''
+    const file = `public/previews/${entry.model.file.replace('.glb', `${suffix}.webp`)}`
     await writeFile(
       file,
       await sharp(Buffer.from(image.split(',')[1], 'base64'))

@@ -12,6 +12,7 @@ import {
   typicalFootShape,
 } from '../src/domain/foot-shape.ts'
 import { footLineupPose } from '../src/domain/feet-world.ts'
+import { defaultFootSkinTone, FOOT_SKIN_PRESETS, FOOT_SKIN_TONES } from '../src/domain/foot-skin.ts'
 import { HUMAN_NAME_MAX_LENGTH } from '../src/domain/height-world.ts'
 import { mintPlacementId } from '../src/domain/ids.ts'
 import { parseDocumentJson, serializeDocument } from '../src/domain/persist.ts'
@@ -231,6 +232,59 @@ assert.deepEqual(oldLink.feet.placements[0].shape, typicalFootShape('male', foot
 const junkTags = decodeShareQuery('?mode=feet&f=foot-male:272:x9:t:w999,foot-male:272:w300')
 assert.deepEqual(junkTags.feet.placements.map((placement) => placement.shape.locked), [[]], 'bad tags are ignored and impossible shapes skipped')
 
+// Appearance is per placement, independent of shape, and travels in saves/links.
+assert.deepEqual(FOOT_SKIN_TONES.map((tone) => FOOT_SKIN_PRESETS[tone].label), ['White', 'Black', 'Hispanic', 'Asian'])
+for (const entry of FEET_CATALOG) {
+  const tones = createCompareApp()
+  for (const tone of FOOT_SKIN_TONES) {
+    const placed = tones.placeFoot(entry.id)
+    assert.ok(placed.ok)
+    const before = tones.getState().feet.placements.at(-1)
+    assert.equal(before.skinTone, defaultFootSkinTone(entry.id))
+    assert.deepEqual(tones.setFootSkinTone(placed.id, tone), { ok: true })
+    const after = tones.getState().feet.placements.at(-1)
+    assert.equal(after.shape, before.shape, 'skin changes keep the exact shape object')
+    assert.equal(after.pose, before.pose, 'skin changes do not move the model')
+    assert.equal(toFootDraw(after, placed.id, 'US').skinTone, tone)
+    assert.ok(tones.updateFootSize(placed.id, { system: 'US', size: 20 }).ok)
+    assert.ok(tones.setFootDimension(placed.id, 'ballWidth', 130).ok)
+    assert.ok(tones.resetFootDimension(placed.id, 'ballWidth').ok)
+    assert.equal(tones.getState().feet.placements.at(-1).skinTone, tone, 'sizing and shape resets retain appearance')
+  }
+  const chosen = tones.getState().feet.placements
+  assert.deepEqual(chosen.map((foot) => foot.skinTone), FOOT_SKIN_TONES, 'identical models keep independent tones')
+  const unchanged = tones.getState()
+  assert.deepEqual(tones.setFootSkinTone(chosen[0].id, 'white'), { ok: true })
+  assert.deepEqual(tones.setFootSkinTone(chosen[0].id, 'unknown'), { ok: false, reason: 'out-of-range' })
+  assert.deepEqual(tones.setFootSkinTone('missing', 'black'), { ok: false, reason: 'not-found' })
+  assert.equal(tones.getState(), unchanged)
+  tones.setMode('height')
+  tones.setMode('feet')
+  const saved = parseDocumentJson(serializeDocument(tones.getState()))
+  assert.ok(saved.ok)
+  assert.deepEqual(saved.value.feet.placements, chosen)
+  const sharedTones = decodeShareQuery(encodeShareQuery(tones.getState()))
+  assert.deepEqual(sharedTones.feet.placements.map((foot) => [foot.skinTone, foot.shape]), chosen.map((foot) => [foot.skinTone, foot.shape]))
+  for (const version of [1, 2]) {
+    const oldSave = JSON.parse(serializeDocument(tones.getState()))
+    oldSave.version = version
+    for (const [index, foot] of oldSave.feet.placements.entries()) {
+      foot.footLengthMm = foot.shape.lengthMm
+      if (version === 1) delete foot.shape
+      if (index % 2) foot.skinTone = 'unknown'
+      else delete foot.skinTone
+    }
+    const migratedTones = parseDocumentJson(JSON.stringify(oldSave))
+    assert.ok(migratedTones.ok)
+    assert.equal(migratedTones.value.feet.placements.length, 4)
+    assert.ok(migratedTones.value.feet.placements.every((foot) => foot.skinTone === defaultFootSkinTone(entry.id)), 'old or malformed appearance retains the authored color')
+  }
+}
+const oldTones = decodeShareQuery('?mode=feet&f=foot-female:242,foot-male:272:sunknown,foot-male:272:sblack:w110')
+assert.deepEqual(oldTones.feet.placements.map((foot) => foot.skinTone), ['hispanic', 'white', 'black'])
+assert.equal(oldTones.feet.placements[2].shape.ballWidthMm, 110)
+assert.ok(!encodeShareQuery(shapes.getState()).includes(':s'), 'default tones keep existing URLs unchanged')
+
 // The lineup spaces people by their scaled footprints, so ten 10-foot people never overlap.
 const giants = createCompareApp()
 for (let index = 0; index < 10; index += 1) {
@@ -311,4 +365,4 @@ for (const world of [restoredTable.value.feet, { ...restoredTable.value.feet, pl
   }
 }
 
-console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, foot shapes, stature allometry, persistence with migration, and share links.')
+console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, foot shapes, per-pair skin tones, stature allometry, persistence with migration, and share links.')

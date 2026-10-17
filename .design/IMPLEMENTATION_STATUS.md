@@ -155,3 +155,13 @@ Visual review captures:
 Ruler numbers previously used HTML overlays, so centimeter labels behind the feet were painted over the skin. Both rulers now use shared canvas-textured sprites in the scene depth buffer. Opaque models hide the appropriate text pixels, and the labels do not intercept selection clicks. The selected-model info badge remains a separate screen overlay.
 
 [US 20 feet correctly occluding the ruler](renders/ruler-depth-feet.png). The six production rendering checks, lint, build and budgets pass after this correction.
+
+## Follow-up: per-pair skin tones (2026-10-17)
+
+The feet inspector offers White, Black, Hispanic and Asian color presets for either foot model. Native radio controls support keyboard selection and mobile touch. Each pair has its own choice, applied to both feet and lower legs, with matching lineup and inspector previews. Shoe sizes, shape locks, pose and toenails remain unchanged.
+
+`FootSkinTone` persists in version 2 saves and optional `s` tags in shared links. Missing or unknown tones fall back to the authored appearance, including version 1 saves. The renderer clones only skin materials per pair and shares all texture maps; cleanup restores bindings and releases the clones. Skin remains opaque, including in front of ruler labels. `assets:previews -- --feet-only` regenerates all foot thumbnails through the same tint function.
+
+Domain checks cover independent choices, size/reset retention, old saves and shared links. Model checks cover material isolation, unchanged geometry/nails, shared maps and cleanup. Desktop/mobile browser flows verify selection, previews, keyboard control, reloads and sharing. Production render coverage includes all four tones on both models alongside the existing sizing scenarios.
+
+Domain, models, kernel, lint, production build, budgets, UI flows and all eight rendering scenarios pass. The four-option control also fits a 320 px phone. [Four tones on independent pairs](renders/feet-skin-tones.png).

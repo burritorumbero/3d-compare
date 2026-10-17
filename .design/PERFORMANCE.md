@@ -61,3 +61,7 @@ Each pair uses the same shoe size and selection camera before and after. The tab
 ## Dark workspace follow-up
 
 The UI revamp keeps the same GLBs, geometry and model texture budget. Eight WebP previews total 79,256 bytes; each is below 30 kB, and the total is capped at 150 kB by `verify:budgets`. These previews are lazy-loaded and replace hover/focus-triggered GLB preloads in the model picker. The interface uses system fonts, eliminating external font requests. Current JavaScript is about 1.25 MB / 346 kB gzip; the exact build is recorded in `.audit/performance.json`.
+
+## Per-pair skin tones
+
+Four selectable tones reuse the same geometry, color/normal/roughness textures and draw calls. Each placement owns only a cloned skin material, shared by its two feet; changing the tone releases the previous clone without disposing shared texture maps. Six additional WebP previews bring all fourteen previews to **122,952 bytes**, within the existing 150 kB budget. The budget check now includes every color variant. JavaScript totals about 1.26 MB / 346 kB gzip.

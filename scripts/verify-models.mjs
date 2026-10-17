@@ -3,8 +3,11 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import * as THREE from 'three'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
+import { defaultFootSkinTone, FOOT_SKIN_TONES } from '../src/domain/foot-skin.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
+import { applyFootSkinTone } from '../src/scene/feet/skin-materials.ts'
 import { bounds } from './glb.mjs'
 import { readModel } from './model-io.mjs'
 
@@ -73,6 +76,59 @@ for (const entry of HUMAN_CATALOG) {
 
 for (const entry of FEET_CATALOG) {
   const model = await openModel(entry)
+  // Recreate the shipped material names/factors with shared texture handles.
+  // A new tone must not recolor other instances of the cached GLB or its nails.
+  const materials = model.document.getRoot().listMaterials().map((material) => {
+    const copy = new THREE.MeshStandardMaterial({
+      name: material.getName(),
+      color: new THREE.Color().fromArray(material.getBaseColorFactor()),
+      map: new THREE.Texture(), normalMap: new THREE.Texture(), roughnessMap: new THREE.Texture(),
+    })
+    return copy
+  })
+  const skin = materials.find((material) => material.name.endsWith('_Skin'))
+  const nails = materials.find((material) => material.name.endsWith('_Toenails'))
+  assert.ok(skin && nails, `${entry.id}: actual materials support skin-only tinting`)
+  const geometry = new THREE.BufferGeometry()
+  const pair = [new THREE.Mesh(geometry, materials), new THREE.Mesh(geometry, materials)]
+  const neighbor = new THREE.Mesh(geometry, materials)
+  const sourceColor = skin.color.clone()
+  let textureDisposals = 0
+  for (const material of materials) {
+    for (const map of [material.map, material.normalMap, material.roughnessMap]) {
+      map.addEventListener('dispose', () => { textureDisposals += 1 })
+    }
+  }
+  const colors = new Set()
+  for (const tone of FOOT_SKIN_TONES) {
+    const restore = applyFootSkinTone(pair, entry.id, tone)
+    const tinted = pair[0].material.find((material) => material.name.endsWith('_Skin'))
+    colors.add(tinted.color.toArray().join(','))
+    assert.notEqual(tinted, skin)
+    assert.equal(pair[1].material.find((material) => material.name.endsWith('_Skin')), tinted, 'both feet and shins use the same tone')
+    assert.equal(pair[0].material.find((material) => material.name.endsWith('_Toenails')), nails, 'toenails keep their authored material')
+    assert.equal(neighbor.material, materials, 'neighboring pair keeps its original materials')
+    assert.deepEqual(skin.color, sourceColor, 'cached skin is never mutated')
+    assert.equal(pair[0].geometry, geometry, 'appearance leaves geometry alone')
+    for (const key of ['map', 'normalMap', 'roughnessMap']) assert.equal(tinted[key], skin[key], `shares the original ${key}`)
+    assert.equal(tinted.depthWrite, true, 'skin stays opaque and occludes ruler text')
+    if (tone === defaultFootSkinTone(entry.id)) assert.deepEqual(tinted.color, sourceColor, 'default exactly preserves authored color')
+    let disposed = false
+    tinted.addEventListener('dispose', () => { disposed = true })
+    restore()
+    assert.ok(disposed, 'replaced skin material is released')
+    assert.equal(pair[0].material, materials)
+    assert.equal(pair[1].material, materials)
+    assert.equal(textureDisposals, 0, 'shared textures survive color changes/unmounts')
+  }
+  assert.equal(colors.size, 4, `${entry.id}: all four tones are distinct`)
+  for (const material of materials) {
+    material.map.dispose()
+    material.normalMap.dispose()
+    material.roughnessMap.dispose()
+    material.dispose()
+  }
+  geometry.dispose()
   for (const meshName of ['LeftFootAndShin', 'RightFootAndShin']) {
     const weights = model.attribute(meshName, '_DEFORM_WEIGHTS')
     assert.equal(weights.length, model.positions(meshName).length, `${entry.id}: ${meshName} has deform weights on every vertex`)
@@ -89,5 +145,5 @@ for (const entry of FEET_CATALOG) {
 }
 
 console.log(
-  `Model verification passed: ${HUMAN_CATALOG.length} human and ${FEET_CATALOG.length} feet GLBs match their catalog sizes.`,
+  `Model verification passed: ${HUMAN_CATALOG.length} human and ${FEET_CATALOG.length} feet GLBs match their catalog sizes; four skin tones preserve shared textures, nails and neighboring instances.`,
 )

@@ -8,6 +8,7 @@ import { gzipSync } from 'node:zlib'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { FEET_CAP } from '../src/domain/feet-world.ts'
+import { defaultFootSkinTone, FOOT_SKIN_TONES } from '../src/domain/foot-skin.ts'
 import { HEIGHT_CAP } from '../src/domain/height-world.ts'
 import { modelIO } from './model-io.mjs'
 
@@ -38,18 +39,25 @@ for (const entry of [...HUMAN_CATALOG, ...FEET_CATALOG]) {
   const isFoot = FEET_CATALOG.some((foot) => foot.id === entry.id)
   const model = (await io.read(path)).getRoot()
   const primitives = model.listMeshes().flatMap((mesh) => mesh.listPrimitives())
+  const previewFiles = isFoot
+    ? FOOT_SKIN_TONES.map((tone) => file.replace(/\.glb$/, `${tone === defaultFootSkinTone(entry.id) ? '' : `-${tone}`}.webp`))
+    : [file.replace(/\.glb$/, '.webp')]
+  const previewBytes = previewFiles.map((preview) => {
+    const bytes = statSync(`${root}dist/previews/${preview}`).size
+    budget(bytes, 30_000, preview)
+    return bytes
+  }).reduce((sum, bytes) => sum + bytes, 0)
   const stats = {
     file,
     glbBytes: statSync(path).size,
     rigBytes: statSync(path.replace(/\.glb$/, '.rig.json')).size,
-    previewBytes: statSync(`${root}dist/previews/${file.replace(/\.glb$/, '.webp')}`).size,
+    previewBytes,
     triangles: primitives.reduce((sum, primitive) => sum + (primitive.getIndices()?.getCount() ?? 0) / 3, 0),
     drawCalls: primitives.length,
     textures: model.listTextures().length,
     textureBytes: model.listTextures().reduce((sum, texture) => sum + textureBytes(texture), 0),
   }
   budget(stats.glbBytes, isFoot ? 2_500_000 : 6_000_000, `${file} download`)
-  budget(stats.previewBytes, 30_000, `${file} preview`)
   budget(stats.rigBytes, 1_000_000, `${file} rig`)
   budget(stats.triangles, isFoot ? 43_000 : 230_000, `${file} triangles`)
   budget(stats.drawCalls, isFoot ? 4 : 35, `${file} draw calls`)
