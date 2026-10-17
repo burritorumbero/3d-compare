@@ -21,6 +21,11 @@ export type BodyLandmarks = {
   biacromialBreadth: number
   hipBreadth: number
   footLength: number
+  /**
+   * Shoulder point to wrist. A rig may measure this as the arm's vertical drop in
+   * its rest pose: with the arm scaled uniformly, the drop changes in proportion.
+   */
+  armLength: number
 }
 
 export const BODY_LANDMARKS = [
@@ -34,6 +39,7 @@ export const BODY_LANDMARKS = [
   'biacromialBreadth',
   'hipBreadth',
   'footLength',
+  'armLength',
 ] as const satisfies readonly (keyof BodyLandmarks)[]
 
 /** Landmark heights from the floor up; each must sit above the one before at every stature. */
@@ -62,6 +68,7 @@ export function averageLandmarks(sex: Sex, statureMm: number): BodyLandmarks {
     biacromialBreadth: power(fits.biacromialBreadth, statureMm),
     hipBreadth: power(fits.hipBreadth, statureMm),
     footLength: power(fits.footLength, statureMm),
+    armLength: power(fits.armLength, statureMm),
   }
 }
 

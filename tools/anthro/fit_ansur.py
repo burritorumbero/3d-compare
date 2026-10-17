@@ -39,6 +39,8 @@ ALLOMETRY_COLUMNS = [
     ("biacromialBreadth", "biacromialbreadth"),
     ("hipBreadth", "hipbreadth"),
     ("footLength", "footlength"),
+    # Shoulder point to wrist: upper arm plus forearm.
+    ("armLength", ("acromionradialelength", "radialestylionlength")),
 ]
 
 CACHE = pathlib.Path(__file__).parent / ".cache"
@@ -86,7 +88,8 @@ def fit(sex):
     allometry = []
     log_stature = [math.log(value) for value in stature]
     for key, name in ALLOMETRY_COLUMNS:
-        intercept, exponent = linear_fit(log_stature, [math.log(value) for value in column(name)])
+        values = [sum(parts) for parts in zip(*map(column, name))] if isinstance(name, tuple) else column(name)
+        intercept, exponent = linear_fit(log_stature, [math.log(value) for value in values])
         allometry.append(f"      {key}: {{ coefficient: {math.exp(intercept):.6g}, exponent: {exponent:.4f} }},")
 
     return "\n".join(
@@ -131,7 +134,8 @@ export type SexAnthropometry = {
     | 'lateralMalleolusHeight'
     | 'biacromialBreadth'
     | 'hipBreadth'
-    | 'footLength',
+    | 'footLength'
+    | 'armLength',
     AllometricFit
   >
 }

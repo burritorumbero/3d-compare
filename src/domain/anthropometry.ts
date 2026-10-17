@@ -23,7 +23,8 @@ export type SexAnthropometry = {
     | 'lateralMalleolusHeight'
     | 'biacromialBreadth'
     | 'hipBreadth'
-    | 'footLength',
+    | 'footLength'
+    | 'armLength',
     AllometricFit
   >
 }
@@ -45,6 +46,7 @@ export const ANSUR_II: { female: SexAnthropometry; male: SexAnthropometry } = {
       biacromialBreadth: { coefficient: 1.79022, exponent: 0.7191 },
       hipBreadth: { coefficient: 1.47408, exponent: 0.7408 },
       footLength: { coefficient: 0.263915, exponent: 0.9246 },
+      armLength: { coefficient: 0.151168, exponent: 1.1092 },
     },
   },
   male: {
@@ -63,6 +65,7 @@ export const ANSUR_II: { female: SexAnthropometry; male: SexAnthropometry } = {
       biacromialBreadth: { coefficient: 3.76439, exponent: 0.6296 },
       hipBreadth: { coefficient: 2.02276, exponent: 0.6879 },
       footLength: { coefficient: 0.346727, exponent: 0.8917 },
+      armLength: { coefficient: 0.219572, exponent: 1.0598 },
     },
   },
 }
