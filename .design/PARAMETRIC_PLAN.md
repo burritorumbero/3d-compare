@@ -7,7 +7,7 @@ Status, 2026-10-17: Phases 1–6 are done, and Phase 0 is partly done. See the c
 Replace uniform (affine) scaling with parametric, constraint-driven sizing:
 
 - **Feet**: independent controls for foot length (still drivable by shoe size), forefoot width, foot thickness (instep height) and toe length. The shape has to stay organic and realistic.
-- **Humans**: stature changes that follow human proportions (allometry) instead of enlarging the whole body. Example: the head grows less than the legs. Heights range from 90 cm to **10 ft (3048 mm)**.
+- **Humans**: stature changes that follow human proportions (allometry) instead of enlarging the whole body. The current policy preserves proportional head and neck growth while legs and body widths follow adult allometry (updated 2026-10-17). Heights range from 90 cm to **10 ft (3048 mm)**.
 - **Models**: keep, or raise, realism comparable to a base Daz3D Genesis figure.
 - **Exactness**: the product exists to compare sizes, so every requested measurement must be the measured measurement of the rendered mesh, within ±1 mm. Today `verify:models` guarantees this for uniform scaling. The new system must keep that guarantee.
 
@@ -86,7 +86,7 @@ Rigging and correctives require a rebuild in any case. The pipeline lives in the
 
 1. **Ship Daz Genesis 9 models.** The owner handles licensing. Daz source files stay out of git (`source-assets/` is ignored). The exported GLBs in `public/models` are published with the site.
 2. **Toe length changes foot length and shoe size.** Foot length = heel-to-ball + toe length. Editing toes keeps heel-to-ball and moves the toe tip. Choosing a shoe size sets foot length, and unlocked toes follow the adult ratio.
-3. **Human height reaches 10 ft (3048 mm).** Beyond the ANSUR II stature range (1.41–1.99 m), the allometric power laws extrapolate. Head height grows with stature^0.24–0.29, so a 3 m figure gets a proportionally small head, consistent with gigantism.
+3. **Human height reaches 10 ft (3048 mm).** Beyond the ANSUR II stature range (1.41–1.99 m), the allometric power laws extrapolate. The raw adult fits grow head height with stature^0.24–0.29. Following visual review, the application overrides the upper-body targets to preserve each model’s head and neck proportions; it does not model gigantism.
 
 ### Asset source: Daz Genesis 9 (replaces the MakeHuman/MPFB plan)
 
@@ -247,3 +247,7 @@ Its output is always checked against tests or a run. It never commits code that 
 3. **Landmark stability** after subdivision and decimation. Mitigation: store landmarks as vertex groups and re-resolve the indices at export.
 4. **Asset size**: morphs plus normal maps grow the GLBs. Mitigation: meshopt + KTX2, budget 2 MB per feet pair and 6 MB per human.
 5. **Pipeline reproducibility**: the current source assets are lost. Phase 0 is mandatory, not optional.
+
+### Visual correction after Phase 6
+
+At the user's request, the application now preserves head and neck proportions as height changes. `averageLandmarks` still exposes the original adult-survey fits; `statureTargets` supplies the application policy by scaling shoulder, neck and ear heights directly with stature. `person-rig.mjs` scales the neck in XYZ with its own control. Regression checks measure the actual skinned body and head attachments, not only target landmarks. The dark UI revamp and visual verification are recorded in `IMPLEMENTATION_STATUS.md`.

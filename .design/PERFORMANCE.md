@@ -57,3 +57,7 @@ Automated Chrome checks use software WebGL. Production captures cover all six pe
 | Male | ![Male US 20, fixed shin](renders/male-feet-us20-before.png) | ![Male US 20, proportional lower leg](renders/male-feet-us20-after.png) |
 
 Each pair uses the same shoe size and selection camera before and after. The table is wider in the updated version; the centimeter grid remains at the same physical scale.
+
+## Dark workspace follow-up
+
+The UI revamp keeps the same GLBs, geometry and model texture budget. Eight WebP previews total 79,256 bytes; each is below 30 kB, and the total is capped at 150 kB by `verify:budgets`. These previews are lazy-loaded and replace hover/focus-triggered GLB preloads in the model picker. The interface uses system fonts, eliminating external font requests. Current JavaScript is about 1.25 MB / 346 kB gzip; the exact build is recorded in `.audit/performance.json`.

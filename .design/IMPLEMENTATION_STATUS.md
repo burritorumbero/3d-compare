@@ -4,7 +4,7 @@
 
 3D Compare is a client-only React and R3F app with two persistent comparison worlds.
 
-- Height mode has six textured human models (three female, three male, with pale, tan, and dark skin tones and distinct outfits), a 10-person cap, custom names, metric and imperial height editing, orbit controls, a meter grid on an open floor, and a free-standing 0 to 220 cm ruler post.
+- Height mode has six textured human models (three female, three male, with pale, tan, and dark skin tones and distinct outfits), a 10-person cap, custom names, metric and imperial height editing, orbit controls, a meter grid on an open floor, and a free-standing 0 to 320 cm ruler post.
 - Feet mode has textured female and male pairs of feet cut at mid-shin, adult US sizing to women's 20 and men's 22 and EU sizing to 58, orbit controls, table-plane inspect controls, and a centimeter table grid.
 - Both modes support add, select, resize, frame, reset, remove, full-screen stage, share links, a per-device stage size, and `localStorage` persistence. Only the selected model shows its info block.
 
@@ -19,8 +19,8 @@
 - `src/scene/models.ts` owns GLB loading, per-placement clones, and cached bounds.
 - `src/scene/environment.tsx` owns the procedural image-based lighting.
 - `src/scene/blob-shadow.tsx` owns the shared contact shadow.
-- `src/scene/height/**` owns the concrete studio, human figures, and orbit controls.
-- `src/scene/feet/**` owns the wood table, foot figures, orbit controls, and inspect controls.
+- `src/scene/height/**` owns the dark measurement studio, human figures, and orbit controls.
+- `src/scene/feet/**` owns the dark measurement table, foot figures, orbit controls, and inspect controls.
 - `src/scene/canvas.tsx` owns the shared R3F canvas.
 - `src/ui/**` owns the responsive chrome, catalogs, inspector, lineup, mode controls, unit controls, navigation controls, and UI states.
 - `scripts/verify-domain.mjs` checks domain conversions, charts, caps, commands, dual-world retention, and persistence.
@@ -48,11 +48,10 @@ The final domain, lint, production build, browser workflow, and live WebGL frame
 
 - The models are static A-pose meshes. There is no animation, pose control, or clothing control.
 - Estimated decoded texture memory is 92–130 MiB per human; all eight cached models total about 733 MiB, excluding other GPU/CPU allocations. Real-device frame-rate profiling remains open.
-- Catalog cards show flat color swatches rather than rendered thumbnails of the models.
-- Human height uses rigged allometric scaling (Phase 5 of `PARAMETRIC_PLAN.md`).
+- Human height uses rigged scaling: proportional head/neck growth, with allometric leg, arm and body-width targets. Heights outside the adult survey range are visual extrapolations.
 - Shoe charts cover adult US 4–22 for men, US 4–20 for women, and EU 34–58.
 - Persistence is local to one browser. Share links reproduce both lineups; there is no account or cloud sync.
-- Production JavaScript totals about 1.25 MB (344 kB gzip). Three.js and React have separate cacheable chunks. `verify:budgets` enforces per-chunk and total limits.
+- Production JavaScript totals about 1.25 MB (345 kB gzip). Three.js and React have separate cacheable chunks. `verify:budgets` enforces per-chunk and total limits.
 
 ## Follow-up: stage visibility (2026-09-06)
 
@@ -136,3 +135,17 @@ Phase 6 resumes after PR #6 merged. The previous fixed-shin policy caused the re
 - **Budgets:** `verify:budgets` checks asset sizes, triangle/draw-call counts, decoded texture memory, JS chunks/total and WASM; CI runs it after build. The measured snapshot is `.audit/performance.json`, with methodology and limits in `.design/PERFORMANCE.md`.
 - **Rendering:** `verify:rendering` now works on dev and production preview and checks six scenarios, including US 20 and chart endpoints. The old script waited for two labels even though only one selection label is shown; that stale assertion is removed.
 - **Final checks:** domain, models, kernel, lint, build, budgets, desktop/mobile UI and six production rendering scenarios pass. US 20 before/after captures are in `.design/renders` and linked from the performance report.
+
+## Follow-up: proportional heads and dark workspace (2026-10-17)
+
+The original ANSUR ear-height extrapolation grew heads much more slowly than stature. The stature policy now scales shoulder, neck and ear heights proportionally with the authored model; the crown remains at the requested height. The neck's width/depth control follows its own length instead of shoulder breadth. Regenerated six rig sidecars without changing the GLBs. All six models now retain proportional head dimensions, eyes and hair at 90 cm, authored height and 304.8 cm. Existing allometric leg and width targets remain.
+
+Rebuilt the UI around one dark theme, a left lineup, central stage and right measurement inspector. Added a native modal model picker with actual asset previews, keyboard focus containment and focus restoration. Height fields commit on blur/Enter and include a live slider and reset. Units sit with their fields, foot customizations explain their lock/reset behavior, and sharing lives in the header. On mobile, a two-tab control separates lineup and measurements; selecting from the lineup opens the editor. Both stages have neutral lighting, matching grid materials and fixed screen-size labels. Decorative selection pulsing and external font requests were removed.
+
+Verification covers domain, models, kernel, lint, production build and delivery budgets, plus desktop/phone/tablet interaction flows and six rendered model scenarios. Preview generation is reproducible via `npm run assets:previews`; delivery budgets include their total and per-file sizes.
+
+Visual review captures:
+
+- [170.5 cm and 10 ft people in the dark workspace](renders/dark-workspace.png)
+- [Rendered model library](renders/dark-model-library.png)
+- [Mobile foot measurements](renders/dark-mobile-feet.png)

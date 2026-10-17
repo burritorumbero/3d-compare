@@ -4,6 +4,7 @@
       "file": "female-tan-dress.glb",
       "glbBytes": 4668636,
       "rigBytes": 550918,
+      "previewBytes": 12264,
       "triangles": 150626,
       "drawCalls": 23,
       "textures": 49,
@@ -13,6 +14,7 @@
       "file": "female-dark-jeans-tshirt.glb",
       "glbBytes": 4019892,
       "rigBytes": 660701,
+      "previewBytes": 11348,
       "triangles": 188408,
       "drawCalls": 19,
       "textures": 47,
@@ -22,6 +24,7 @@
       "file": "female-pale-shorts-croptop.glb",
       "glbBytes": 4253112,
       "rigBytes": 664712,
+      "previewBytes": 9660,
       "triangles": 162877,
       "drawCalls": 32,
       "textures": 76,
@@ -31,6 +34,7 @@
       "file": "male-tan-shorts-tshirt.glb",
       "glbBytes": 3665572,
       "rigBytes": 660268,
+      "previewBytes": 7354,
       "triangles": 161201,
       "drawCalls": 31,
       "textures": 66,
@@ -40,6 +44,7 @@
       "file": "male-dark-jeans-sleeveless.glb",
       "glbBytes": 3883656,
       "rigBytes": 667435,
+      "previewBytes": 6748,
       "triangles": 175529,
       "drawCalls": 34,
       "textures": 82,
@@ -49,6 +54,7 @@
       "file": "male-pale-trousers-shirt.glb",
       "glbBytes": 4534108,
       "rigBytes": 696234,
+      "previewBytes": 16468,
       "triangles": 221648,
       "drawCalls": 22,
       "textures": 46,
@@ -58,6 +64,7 @@
       "file": "female-feet-shins.glb",
       "glbBytes": 2411084,
       "rigBytes": 310750,
+      "previewBytes": 7336,
       "triangles": 40544,
       "drawCalls": 4,
       "textures": 5,
@@ -67,6 +74,7 @@
       "file": "male-feet-shins.glb",
       "glbBytes": 2312084,
       "rigBytes": 267757,
+      "previewBytes": 8078,
       "triangles": 41288,
       "drawCalls": 4,
       "textures": 5,
@@ -75,14 +83,14 @@
   ],
   "assets": [
     {
-      "file": "index-DJfkMwW2.js",
-      "bytes": 333696,
-      "gzipBytes": 101003
+      "file": "index-BDXEIOoZ.css",
+      "bytes": 28831,
+      "gzipBytes": 6912
     },
     {
-      "file": "index-OHw_1d4B.css",
-      "bytes": 31712,
-      "gzipBytes": 7878
+      "file": "index-BdAo3j90.js",
+      "bytes": 336139,
+      "gzipBytes": 101883
     },
     {
       "file": "kernel_bg-C2gzpbkm.wasm",
@@ -106,9 +114,10 @@
     }
   ],
   "totals": {
-    "javascriptBytes": 1250799,
-    "javascriptGzipBytes": 344530,
+    "javascriptBytes": 1253242,
+    "javascriptGzipBytes": 345410,
     "allModelBytes": 29748144,
+    "allPreviewBytes": 79256,
     "allTextureBytes": 768722916,
     "maxHeightTriangles": 2216480,
     "maxHeightDrawCalls": 340,
