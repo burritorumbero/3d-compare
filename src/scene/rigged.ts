@@ -1,57 +1,85 @@
 import * as THREE from 'three'
-import type { RigFile, RigPose } from '../../kernel/index.ts'
+import type { RigFile, RigPose } from '../kernel/index.ts'
 
 /**
- * One foot, skinned to bones rebuilt from its rig file. The bones follow the rig
- * contract (identity rest rotation, heads on the floor), so setting `bone.scale`
- * to the kernel's pose deforms the mesh exactly as the kernel measured it.
+ * Meshes skinned to bones rebuilt from a rig file. The bones follow the rig
+ * contract (identity rest rotation, heads from the rig), so setting `bone.scale`
+ * to the kernel's pose deforms the meshes exactly as the kernel measured them.
  */
-export type RiggedFoot = {
-  /** Holds the bones and the skinned meshes; move this to place the foot. */
+export type Rigged = {
+  /** Holds the bones and the skinned meshes; move this to place the model. */
   root: THREE.Group
   bones: readonly THREE.Bone[]
   meshes: readonly THREE.SkinnedMesh[]
 }
 
-/** The meshes that make up a glTF mesh node: the node itself, or one child per material. */
-function nodeMeshes(node: THREE.Object3D): THREE.Mesh[] {
-  if (node instanceof THREE.Mesh) {
-    return [node]
-  }
-
-  return node.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+/** Every mesh under a node, the node included. */
+function meshesUnder(node: THREE.Object3D): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = []
+  node.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      meshes.push(child)
+    }
+  })
+  return meshes
 }
 
 /**
- * Adds skinIndex and skinWeight from the `_DEFORM_WEIGHTS` attribute (shin,
- * foot, toes), once per geometry. Geometry is shared by every placement of a model.
+ * Adds skinIndex and skinWeight once per geometry (geometry is shared by every
+ * placement of a model), from either authoring layout:
+ * - `_skin_index` / `_skin_weight`: four bone influences per vertex (people);
+ * - `_deform_weights`: shin, foot, toes weights for bones 0, 1, 2 (feet).
  */
 function ensureSkinAttributes(geometry: THREE.BufferGeometry): void {
   if (geometry.getAttribute('skinIndex')) {
     return
   }
 
-  const weights = geometry.getAttribute('_deform_weights')
-  if (!weights) {
-    throw new Error('Foot geometry has no _DEFORM_WEIGHTS attribute.')
+  const index = geometry.getAttribute('_skin_index')
+  const weight = geometry.getAttribute('_skin_weight')
+  const deform = geometry.getAttribute('_deform_weights')
+  const count = (index ?? deform)?.count
+  if (count === undefined || (index && !weight)) {
+    throw new Error('Rigged geometry needs _SKIN_INDEX and _SKIN_WEIGHT, or _DEFORM_WEIGHTS.')
   }
 
-  const indices = new Uint16Array(weights.count * 4)
-  const values = new Float32Array(weights.count * 4)
-  for (let vertex = 0; vertex < weights.count; vertex += 1) {
-    const shin = weights.getX(vertex)
-    const foot = weights.getY(vertex)
-    const toes = weights.getZ(vertex)
-    const total = shin + foot + toes || 1
-    indices.set([0, 1, 2, 0], vertex * 4)
-    values.set([shin / total, foot / total, toes / total, 0], vertex * 4)
+  const indices = new Uint16Array(count * 4)
+  const values = new Float32Array(count * 4)
+  for (let vertex = 0; vertex < count; vertex += 1) {
+    const bones = index
+      ? [index.getX(vertex), index.getY(vertex), index.getZ(vertex), index.getW(vertex)]
+      : [0, 1, 2, 0]
+    const raw = index
+      ? [weight.getX(vertex), weight.getY(vertex), weight.getZ(vertex), weight.getW(vertex)]
+      : [deform.getX(vertex), deform.getY(vertex), deform.getZ(vertex), 0]
+    const total = raw[0] + raw[1] + raw[2] + raw[3] || 1
+    indices.set(bones.map(Math.round), vertex * 4)
+    values.set(raw.map((value) => value / total), vertex * 4)
   }
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(indices, 4))
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(values, 4))
 }
 
-/** Builds the bones for `rig` and skins the meshes of `node` (left or right foot) to them. */
-export function rigFoot(node: THREE.Object3D, rig: RigFile): RiggedFoot {
+/**
+ * Hair, lash, and brow cards blend badly when sorted per mesh. Alpha to coverage
+ * turns their soft alpha into MSAA sample coverage instead: they write depth,
+ * need no sorting, and keep their density (a hard 0.5 cutoff erases soft hair).
+ * Materials are shared, so this runs once per material.
+ */
+function cutoutTransparency(material: THREE.Material | THREE.Material[]): void {
+  for (const each of Array.isArray(material) ? material : [material]) {
+    if (each.transparent) {
+      each.transparent = false
+      each.alphaToCoverage = true
+      each.alphaTest = 0.1
+      each.depthWrite = true
+      each.needsUpdate = true
+    }
+  }
+}
+
+/** Builds the bones for `rig` and skins every mesh under `node` to them. */
+export function rigNode(node: THREE.Object3D, rig: RigFile): Rigged {
   const bones = rig.bones.map((spec) => {
     const bone = new THREE.Bone()
     bone.name = `${rig.mesh}:${spec.name}`
@@ -73,8 +101,9 @@ export function rigFoot(node: THREE.Object3D, rig: RigFile): RiggedFoot {
   root.updateMatrixWorld(true)
   const skeleton = new THREE.Skeleton(bones)
 
-  const meshes = nodeMeshes(node).map((source) => {
+  const meshes = meshesUnder(node).map((source) => {
     ensureSkinAttributes(source.geometry)
+    cutoutTransparency(source.material)
     const skinned = new THREE.SkinnedMesh(source.geometry, source.material)
     skinned.name = source.name
     // Bounds change with the pose; the scene is small enough to skip culling.
@@ -88,9 +117,9 @@ export function rigFoot(node: THREE.Object3D, rig: RigFile): RiggedFoot {
   return { root, bones, meshes }
 }
 
-/** Applies a kernel pose (bone scales in rig order) to a rigged foot. */
-export function poseFoot(foot: RiggedFoot, pose: RigPose): void {
-  foot.bones.forEach((bone, index) => {
+/** Applies a kernel pose (local bone scales in rig order) to a rigged model. */
+export function applyPose(rigged: Rigged, pose: RigPose): void {
+  rigged.bones.forEach((bone, index) => {
     const [x, y, z] = pose.boneScales[index]
     bone.scale.set(x, y, z)
   })

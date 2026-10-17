@@ -13,9 +13,12 @@ export function rigUrl(asset: ModelAsset): string {
   return modelUrl(asset).replace(/\.glb$/, '.rig.json')
 }
 
-/** Starts fetching a model so a later placement does not wait on the network. */
+/**
+ * Starts fetching a model so a later placement does not wait on the network.
+ * Models may use meshopt-compressed geometry, so the meshopt decoder is enabled.
+ */
 export function preloadModel(asset: ModelAsset): void {
-  useGLTF.preload(modelUrl(asset), false, false)
+  useGLTF.preload(modelUrl(asset), false, true)
 }
 
 export type LoadedModel = {
@@ -49,11 +52,11 @@ function measure(source: THREE.Object3D): THREE.Box3 {
  * returned scene to the stage.
  */
 export function useModelScene(asset: ModelAsset): THREE.Group {
-  return useGLTF(modelUrl(asset), false, false).scene
+  return useGLTF(modelUrl(asset), false, true).scene
 }
 
 export function useModel(asset: ModelAsset): LoadedModel {
-  const gltf = useGLTF(modelUrl(asset), false, false)
+  const gltf = useGLTF(modelUrl(asset), false, true)
   return useMemo(
     () => ({ object: gltf.scene.clone(true), bounds: measure(gltf.scene) }),
     [gltf],
