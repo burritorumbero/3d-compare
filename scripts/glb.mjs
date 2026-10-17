@@ -38,24 +38,39 @@ export function readGlb(path) {
 
 /** Positions of every vertex in the named mesh, as [x, y, z] in the file's own units. */
 export function meshPositions(glb, meshName) {
+  return meshAttribute(glb, meshName, 'POSITION')
+}
+
+/**
+ * A float attribute of every vertex in the named mesh, primitives concatenated in
+ * order, so index i here is vertex i of the mesh across its materials.
+ */
+export function meshAttribute(glb, meshName, attribute) {
   const mesh = glb.json.meshes.find((candidate) => candidate.name === meshName)
   if (!mesh) {
     throw new Error(`Mesh ${meshName} not found.`)
   }
 
-  const points = []
+  const values = []
   for (const primitive of mesh.primitives) {
-    const accessor = glb.json.accessors[primitive.attributes.POSITION]
+    if (primitive.attributes[attribute] === undefined) {
+      throw new Error(`Mesh ${meshName} has no ${attribute} attribute.`)
+    }
+    const accessor = glb.json.accessors[primitive.attributes[attribute]]
+    if (accessor.componentType !== 5126) {
+      throw new Error(`${attribute} must be 32-bit floats.`)
+    }
     const view = glb.json.bufferViews[accessor.bufferView]
-    const stride = view.byteStride ?? COMPONENT_BYTES[accessor.componentType] * TYPE_COUNT[accessor.type]
+    const width = TYPE_COUNT[accessor.type]
+    const stride = view.byteStride ?? COMPONENT_BYTES[accessor.componentType] * width
     const base = (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0)
     for (let index = 0; index < accessor.count; index += 1) {
       const at = base + index * stride
-      points.push([glb.bin.readFloatLE(at), glb.bin.readFloatLE(at + 4), glb.bin.readFloatLE(at + 8)])
+      values.push(Array.from({ length: width }, (_, component) => glb.bin.readFloatLE(at + component * 4)))
     }
   }
 
-  return points
+  return values
 }
 
 export function bounds(points) {

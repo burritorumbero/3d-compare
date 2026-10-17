@@ -30,3 +30,6 @@ source-assets
 # Kernel build output
 kernel/target
 src/kernel/pkg
+
+# Transient texture crops written during npm run assets:feet
+public/models/.*-textures
