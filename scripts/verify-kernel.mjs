@@ -379,7 +379,7 @@ for (const entry of HUMAN_CATALOG) {
     peopleSolves += 1
     const errorMm = solution.maxError * 1000
     peopleWorst = Math.max(peopleWorst, errorMm)
-    assert.ok(errorMm <= MAX_ERROR_MM, `${entry.id} at ${stature} mm: off by ${errorMm.toFixed(3)} mm`)
+    assert.ok(errorMm <= STATURE_TOLERANCE_MM, `${entry.id} at ${stature} mm: off by ${errorMm.toFixed(3)} mm`)
     assert.ok(solution.bounds.min[1] > -0.0005, `${entry.id} at ${stature} mm: nothing sinks below the floor (${(solution.bounds.min[1] * 1000).toFixed(1)} mm)`)
     assert.ok(Math.abs(solution.measures.stature * 1000 - stature) < MAX_ERROR_MM, `${entry.id} at ${stature} mm: stature lands exactly`)
   }
@@ -419,7 +419,7 @@ for (const entry of HUMAN_CATALOG) {
     const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])), { tolerance: STATURE_TOLERANCE_MM / 1000 })
     const warm = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])), { initial: previousControls, tolerance: STATURE_TOLERANCE_MM / 1000 })
     previousControls = warm.controls
-    assert.ok(warm.maxError * 1000 < MAX_ERROR_MM, `${entry.id}: warm solve matches all dimensions at ${height}`)
+    assert.ok(warm.maxError * 1000 <= STATURE_TOLERANCE_MM, `${entry.id}: warm solve matches all dimensions at ${height}`)
     for (const name of solver.controlNames) assert.ok(Math.abs(warm.controls[name]-solution.controls[name]) < .003, `${entry.id}: edit order does not change ${name}`)
     applyPose(person, solver.pose(solution.controls))
     person.root.updateMatrixWorld(true)

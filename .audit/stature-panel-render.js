@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { loadKernel, RigSolver } from '../src/kernel/index.ts'
-import { statureTargets } from '../src/domain/stature.ts'
+import { statureTargets, STATURE_TOLERANCE_MM } from '../src/domain/stature.ts'
 import { applyPose, rigNode } from '../src/scene/rigged.ts'
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
@@ -44,7 +44,7 @@ window.captureStature = async (id, heightMm, angle = 'front') => {
   const { person, solver, authored } = cached.get(id)
   const mm = heightMm ?? authored.stature
   const targets = statureTargets(id.startsWith('female') ? 'female' : 'male', authored, mm)
-  const solved = solver.solve(Object.fromEntries(Object.entries(targets).map(([k,v])=>[k,v/1000])))
+  const solved = solver.solve(Object.fromEntries(Object.entries(targets).map(([k,v])=>[k,v/1000])), { tolerance: STATURE_TOLERANCE_MM / 1000 })
   applyPose(person, solver.pose(solved.controls))
   person.root.rotation.y = angle === 'side' ? -Math.PI/2 : angle === 'three-quarter' ? -Math.PI/4 : 0
   scene.add(person.root)

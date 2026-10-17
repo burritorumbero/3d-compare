@@ -48,7 +48,7 @@ The final domain, lint, production build, browser workflow, and live WebGL frame
 
 - The models are static A-pose meshes. There is no animation, pose control, or clothing control.
 - Estimated decoded texture memory is 92–130 MiB per human; all eight cached models total about 733 MiB, excluding other GPU/CPU allocations. Real-device frame-rate profiling remains open.
-- Human height uses rigged scaling: proportional head/neck growth, with allometric leg, arm and body-width targets. Heights outside the adult survey range are visual extrapolations.
+- Human height uses rigged scaling with independent head, neck-spacing, arm-length, arm-thickness and hand targets, plus bounded allometric leg and body-width targets. Heights outside the adult survey range are visual extrapolations.
 - Shoe charts cover adult US 4–22 for men, US 4–20 for women, and EU 34–58.
 - Persistence is local to one browser. Share links reproduce both lineups; there is no account or cloud sync.
 - Production JavaScript totals about 1.25 MB (345 kB gzip). Three.js and React have separate cacheable chunks. `verify:budgets` enforces per-chunk and total limits.
@@ -173,3 +173,9 @@ White and Asian female presets previously multiplied the same tan color map by a
 The [analysis and before/after comparison](FEMALE_SKIN_REVIEW.md) records the skin-rendering research, photographic references, source materials and implementation limits. Reproducible cropping is guarded by the shipped UV hash. Model tests require independent maps, reject returning to a uniform color adjustment and cover material isolation/cleanup. Rendering coverage adds close-ups of each corrected preset. Optional maps add 229 kB of downloads and 24.1 MiB of decoded texture memory, within the existing budgets.
 
 Domain, models, kernel, lint, production build, budgets, desktop/mobile UI flows and all ten production rendering scenarios pass. Both corrected close-ups were visually inspected against the references.
+
+## Follow-up: balanced stature deformation (2026-10-17)
+
+Rebuilt all six human rigs to separate upper arms, forearms and hands, using anatomical scale axes and full affine bone transforms. Head dimensions now grow moderately, arm thickness follows shoulder breadth, and shoulder skin weights no longer make the torso compensate for arm enlargement. Relative shape changes taper smoothly beyond the adult survey range. At 10 ft the head/shoulder ratio stays within 1.51% of authored proportions (previously 17–24% larger), and arm thickness/shoulder remains within 0.10%.
+
+The implementation, policy limits, panel re-review, quantitative results and before/after renders are recorded in [STATURE_IMPLEMENTATION.md](STATURE_IMPLEMENTATION.md).

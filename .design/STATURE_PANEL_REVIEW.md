@@ -1,6 +1,6 @@
 # Human stature deformation: panel assessment
 
-2026-10-17 · Reviewed production revision `4d0ec87` · Analysis only; application behavior and production assets are unchanged.
+2026-10-17 · Reviewed production revision `4d0ec87` · Historical baseline assessment. The subsequent correction is documented in [STATURE_IMPLEMENTATION.md](STATURE_IMPLEMENTATION.md).
 
 ## Finding
 
@@ -143,7 +143,7 @@ The present review supplies all-six numerical evidence and 16 representative fro
 
 ## Reproduction
 
-From the repository root, with dependencies installed:
+The following reproduces the **baseline** from commit `d2518ee`, with dependencies installed. Current scripts produce the corrected results described in `STATURE_IMPLEMENTATION.md`:
 
 ```sh
 npm run build:kernel

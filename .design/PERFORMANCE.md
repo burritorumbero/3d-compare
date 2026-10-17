@@ -67,3 +67,7 @@ The UI revamp keeps the same GLBs, geometry and model texture budget. Eight WebP
 Four selectable tones reuse the same geometry, color/normal/roughness textures and draw calls. Each placement owns only a cloned skin material, shared by its two feet; changing the tone releases the previous clone without disposing shared texture maps. Six additional WebP previews bring all fourteen previews to **122,952 bytes**, within the existing 150 kB budget. The budget check now includes every color variant. JavaScript totals about 1.26 MB / 346 kB gzip.
 
 The subsequent female-complexion correction replaces the White and Asian material tints with two independent map sets. The optional maps total **228,656 bytes** downloaded and **24.1 MiB** decoded with mipmaps. They load on demand and stay shared across matching pairs. The aggregate texture estimate is **757.2 MiB**, still under 768 MiB; `verify:budgets` includes every map and enforces a 300 kB combined download limit. Updated previews total **124,460 bytes**. GLBs, geometry and draw-call counts are unchanged.
+
+## Stature correction
+
+The affine-bone kernel is 87.6 kB (under the existing 90 kB / 35 kB maximum-compression gzip limits). Rust uses size optimization (`opt-level = "z"`); local human warm-edit solves measured roughly 3–4 ms. Rebuilt people retain triangle, draw-call and texture counts. JavaScript totals 1,258.4 kB / 347.2 kB gzip. Exact current budget values are in `.audit/performance.json`.
