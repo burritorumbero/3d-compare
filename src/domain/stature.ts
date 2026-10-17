@@ -22,11 +22,18 @@ export type BodyLandmarks = {
   hipBreadth: number
   footLength: number
   /**
-   * Shoulder point to wrist. A rig may measure this as the arm's vertical drop in
-   * its rest pose: with the arm scaled uniformly, the drop changes in proportion.
+   * Shoulder joint to elbow to wrist, following the anatomical limb path.
    */
   armLength: number
 }
+
+/** Surface widths measured on each authored mesh; they preserve that person's build. */
+export type BodyWidths = { headWidth: number; neckWidth: number; armWidth: number; handWidth: number }
+export const BODY_WIDTHS = ['headWidth', 'neckWidth', 'armWidth', 'handWidth'] as const
+
+// Nearby shoulder/neck landmarks can amplify residual error into torso scale.
+// Solve them tightly enough that dragging back to a height restores its shape.
+export const STATURE_TOLERANCE_MM = .005
 
 export const BODY_LANDMARKS = [
   'ankle',
@@ -72,23 +79,58 @@ export function averageLandmarks(sex: Sex, statureMm: number): BodyLandmarks {
   }
 }
 
+// Observed public ANSUR II stature bounds (not percentile bands). Outside them,
+// gradually stop changing relative proportions. This is an artistic extension,
+// not a biological prediction for children or giant adults. The tanh shoulder
+// keeps both the value and slope continuous and bounds the proportion drift.
+const ADULT_STATURE: Record<Sex, readonly [number, number]> = { female: [1409, 1829], male: [1491, 1993] }
+const EXTRAPOLATION_LOG_SPAN = Math.log(1.25)
+
+export function statureGrowth(sex: Sex, referenceMm: number, targetMm: number, exponent: number): number {
+  const [low, high] = ADULT_STATURE[sex].map(Math.log)
+  function shapeLog(mm: number): number {
+    const h = Math.log(mm)
+    const edge = Math.max(low, Math.min(high, h))
+    return edge + EXTRAPOLATION_LOG_SPAN * Math.tanh((h - edge) / EXTRAPOLATION_LOG_SPAN)
+  }
+  return targetMm / referenceMm * Math.exp((exponent - 1) * (shapeLog(targetMm) - shapeLog(referenceMm)))
+}
+
 /**
- * Keep the authored head and neck proportional to stature. Scaling the upper
- * landmarks together also leaves room for the neck above the shoulders; using
- * the extrapolated adult ear height alone makes heads disproportionately small on very tall figures.
- * Legs, arm length and body breadths retain the adult allometric adjustments.
+ * Preserve authored identity, then choose dimensions independently of placement.
+ * Head (.67), neck/upper-head spacing (.8), and hand (.72) are reviewed visual policies;
+ * the survey's tragion-to-crown fit is not a whole-head growth model. Arm girth
+ * follows shoulder breadth, preserving build instead of applying arm length's
+ * exponent to thickness. Upper landmarks are assembled from local segment gaps.
  */
-export function statureTargets(sex: Sex, authored: BodyLandmarks, statureMm: number): BodyLandmarks {
-  const from = averageLandmarks(sex, authored.stature)
-  const to = averageLandmarks(sex, statureMm)
-  const targets = {} as BodyLandmarks
-  for (const landmark of BODY_LANDMARKS) {
-    targets[landmark] = authored[landmark] * (to[landmark] / from[landmark])
+export function statureTargets(
+  sex: Sex,
+  authored: BodyLandmarks & Partial<BodyWidths>,
+  statureMm: number,
+): BodyLandmarks & Partial<BodyWidths> {
+  const fits = ANSUR_II[sex].allometry
+  const grow = (exponent: number) => statureGrowth(sex, authored.stature, statureMm, exponent)
+  const head = grow(.67)
+  const breadth = grow(fits.biacromialBreadth.exponent)
+  const ear = statureMm - (authored.stature - authored.ear) * head
+  const neck = ear - (authored.ear - authored.neck) * grow(.8)
+  const targets: BodyLandmarks & Partial<BodyWidths> = {
+    ankle: authored.ankle * grow(fits.lateralMalleolusHeight.exponent),
+    knee: authored.knee * grow(fits.kneeHeight.exponent),
+    crotch: authored.crotch * grow(fits.crotchHeight.exponent),
+    shoulder: neck - (authored.neck - authored.shoulder) * grow(1),
+    neck,
+    ear,
+    stature: statureMm,
+    biacromialBreadth: authored.biacromialBreadth * breadth,
+    hipBreadth: authored.hipBreadth * grow(fits.hipBreadth.exponent),
+    footLength: authored.footLength * grow(fits.footLength.exponent),
+    armLength: authored.armLength * grow(fits.armLength.exponent),
   }
-  const growth = statureMm / authored.stature
-  for (const landmark of ['shoulder', 'neck', 'ear'] as const) {
-    targets[landmark] = authored[landmark] * growth
+  const widthGrowth = { headWidth: head, neckWidth: breadth, armWidth: breadth, handWidth: grow(.72) }
+  for (const key of BODY_WIDTHS) {
+    const width = authored[key]
+    if (width !== undefined) targets[key] = width * widthGrowth[key]
   }
-  targets.stature = statureMm
   return targets
 }

@@ -7,7 +7,7 @@ import type { HeightWorld } from '../../domain/height-world.ts'
 import type { LengthUnit } from '../../domain/measure.ts'
 import { BlobShadow } from '../blob-shadow.tsx'
 import { humanLineupX, toHumanDraw, type HumanDraw } from '../draw.ts'
-import { BODY_LANDMARKS, statureTargets, type BodyLandmarks } from '../../domain/stature.ts'
+import { BODY_LANDMARKS, BODY_WIDTHS, STATURE_TOLERANCE_MM, statureTargets, type BodyLandmarks, type BodyWidths } from '../../domain/stature.ts'
 import type { RigSolver } from '../../kernel/index.ts'
 import { useModelScene } from '../models.ts'
 import { useRigSolvers } from '../rig-cache.ts'
@@ -36,10 +36,10 @@ function LoadingSilhouette({ height }: { height: number }) {
 const lastControls = new Map<string, Readonly<Record<string, number>>>()
 
 /** The authored model's landmarks in millimeters, as the rig measures them at rest. */
-function authoredLandmarks(solver: RigSolver): BodyLandmarks {
+function authoredLandmarks(solver: RigSolver): BodyLandmarks & BodyWidths {
   const rest = solver.evaluate().measures
-  const landmarks = {} as BodyLandmarks
-  for (const name of BODY_LANDMARKS) {
+  const landmarks = {} as BodyLandmarks & BodyWidths
+  for (const name of [...BODY_LANDMARKS, ...BODY_WIDTHS]) {
     if (rest[name] === undefined) {
       throw new Error(`Person rig ${solver.rig.mesh} has no ${name} measure.`)
     }
@@ -54,11 +54,11 @@ function HumanModel({ app, draw }: FigureProps) {
   const person = useMemo(() => rigNode(scene, solver.rig), [scene, solver])
   const authored = useMemo(() => authoredLandmarks(solver), [solver])
 
-  // Preserve head/neck proportions; adjust the remaining targets with adult allometry.
+  // Separate head placement, limb lengths and widths, with bounded extrapolation.
   const solved = useMemo(() => {
     const targets = statureTargets(draw.sex, authored, draw.heightMm)
     const meters = Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000]))
-    const solution = solver.solve(meters, { initial: lastControls.get(draw.id) })
+    const solution = solver.solve(meters, { initial: lastControls.get(draw.id), tolerance: STATURE_TOLERANCE_MM / 1000 })
     lastControls.set(draw.id, solution.controls)
     return solution
   }, [solver, authored, draw.sex, draw.heightMm, draw.id])

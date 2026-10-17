@@ -251,3 +251,7 @@ Its output is always checked against tests or a run. It never commits code that 
 ### Visual correction after Phase 6
 
 At the user's request, the application now preserves head and neck proportions as height changes. `averageLandmarks` still exposes the original adult-survey fits; `statureTargets` supplies the application policy by scaling shoulder, neck and ear heights directly with stature. `person-rig.mjs` scales the neck in XYZ with its own control. Regression checks measure the actual skinned body and head attachments, not only target landmarks. The dark UI revamp and visual verification are recorded in `IMPLEMENTATION_STATUS.md`.
+
+### Panel correction: balanced heads and independent arm dimensions
+
+The earlier proportional-head policy above is superseded by [the completed stature correction](STATURE_IMPLEMENTATION.md). All six people now use 17 bones, anatomical arm axes, independent length/girth/hand controls, chest-owned shoulder landmarks, and bounded shape extrapolation. The kernel and renderer share complete affine matrices; actual-mesh tests constrain head/shoulder and arm/shoulder balance and repeated height edits. Baseline evidence remains in `STATURE_PANEL_REVIEW.md`.

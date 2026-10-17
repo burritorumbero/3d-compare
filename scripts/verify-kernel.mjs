@@ -1,7 +1,7 @@
 // Proves the WebAssembly kernel on the shipped feet rigs: each rig matches its
 // GLB, and across the full range of foot shapes the solved rig measures what was
 // asked within 0.1 mm, soles stay on the floor, the lower leg grows with the foot, left and
-// right feet solve alike, and three.js skinning with the kernel's bone scales
+// right feet solve alike, and three.js skinning with the kernel's bone matrices
 // reproduces the kernel's measurements (so the GPU draws what the kernel measured).
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -12,7 +12,7 @@ import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { footDimensionRange, typicalFootShape, setFootDimension, resizeFoot } from '../src/domain/foot-shape.ts'
 import { FOOT_SPACING_M } from '../src/domain/layout.ts'
 import { shoeRows } from '../src/domain/shoe-charts.ts'
-import { averageLandmarks, statureTargets } from '../src/domain/stature.ts'
+import { averageLandmarks, STATURE_TOLERANCE_MM, statureTargets } from '../src/domain/stature.ts'
 import { assertFootRig, footRigTargets, solveFoot } from '../src/kernel/foot.ts'
 import { feetRigFile } from './foot-rig.mjs'
 import { personRigFile } from './person-rig.mjs'
@@ -47,12 +47,27 @@ function skinWithApp(glb, rig, pose) {
   )
 }
 
-function measureWithThree(rig, points) {
+function measureWithThree(rig, points, bones) {
   const axis = { x: 'x', y: 'y', z: 'z' }
   const values = (group, a) => rig.groups[group].map((vertex) => points[vertex][axis[a]])
   const mean = (list) => list.reduce((sum, value) => sum + value, 0) / list.length
   return Object.fromEntries(
     rig.measures.map((measure) => {
+      if (measure.kind === 'bonePath') {
+        let index = rig.bones.findIndex(bone=>bone.name===measure.to)
+        const end = rig.bones.findIndex(bone=>bone.name===measure.from)
+        let length = 0
+        while (index !== end) {
+          const parent = rig.bones.findIndex(bone=>bone.name===rig.bones[index].parent)
+          length += bones[index].getWorldPosition(new THREE.Vector3()).distanceTo(bones[parent].getWorldPosition(new THREE.Vector3()))
+          index = parent
+        }
+        return [measure.name, length]
+      }
+      if (measure.kind === 'distance') {
+        const center = group => new THREE.Vector3(...['x','y','z'].map(a=>mean(values(group,a))))
+        return [measure.name, center(measure.from).distanceTo(center(measure.to))]
+      }
       if (measure.kind === 'between') {
         return [measure.name, Math.abs(mean(values(measure.to, measure.axis)) - mean(values(measure.from, measure.axis)))]
       }
@@ -291,7 +306,11 @@ function skinWithBones(rig, pose) {
   })
   bones[0].updateMatrixWorld(true)
   const skeleton = new THREE.Skeleton(bones)
-  pose.boneScales.forEach((scale, index) => bones[index].scale.set(...scale))
+  pose.boneMatrices.forEach((matrix, index) => {
+    bones[index].matrixAutoUpdate = false
+    bones[index].matrix.fromArray(matrix)
+    bones[index].matrixWorldNeedsUpdate = true
+  })
   bones[0].updateMatrixWorld(true)
   return Array.from({ length: rig.vertices.positions.length / 3 }, (_, vertex) => {
     const bone = rig.vertices.skinBones[vertex * 4]
@@ -322,7 +341,7 @@ for (const sex of ['female', 'male']) {
 }
 
 // Shipped people: each rig matches its GLB, every stature from 0.9 to 3.05 m
-// solves to the ANSUR targets within 0.1 mm with soles on the floor, and the
+// solves to the stature targets within 0.1 mm with soles on the floor, and the
 // app's own skinning (rigNode + applyPose) puts every landmark where the kernel did.
 let peopleSolves = 0
 let peopleWorst = 0
@@ -356,11 +375,11 @@ for (const entry of HUMAN_CATALOG) {
   assert.ok(Math.abs(authored.stature - entry.referenceHeightMm) <= 3, `${entry.id}: rig stature matches the catalog`)
   for (let stature = 900; stature <= 3048; stature += 113) {
     const targets = statureTargets(entry.sex, authored, stature)
-    const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])))
+    const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])), { tolerance: STATURE_TOLERANCE_MM / 1000 })
     peopleSolves += 1
     const errorMm = solution.maxError * 1000
     peopleWorst = Math.max(peopleWorst, errorMm)
-    assert.ok(errorMm <= MAX_ERROR_MM, `${entry.id} at ${stature} mm: off by ${errorMm.toFixed(3)} mm`)
+    assert.ok(errorMm <= STATURE_TOLERANCE_MM, `${entry.id} at ${stature} mm: off by ${errorMm.toFixed(3)} mm`)
     assert.ok(solution.bounds.min[1] > -0.0005, `${entry.id} at ${stature} mm: nothing sinks below the floor (${(solution.bounds.min[1] * 1000).toFixed(1)} mm)`)
     assert.ok(Math.abs(solution.measures.stature * 1000 - stature) < MAX_ERROR_MM, `${entry.id} at ${stature} mm: stature lands exactly`)
   }
@@ -394,27 +413,56 @@ for (const entry of HUMAN_CATALOG) {
     return { mesh, vertices, restSize: bounds.getSize(new THREE.Vector3()) }
   }).filter((sample) => sample.vertices.length > 10)
   assert.ok(samples.length >= 3, `${entry.id}: body and head attachments are covered`)
-  for (const height of [900, authored.stature, 3048]) {
+  let previousControls
+  for (const height of [900, authored.stature, 2000, 2400, 3048, 2400, authored.stature]) {
     const targets = statureTargets(entry.sex, authored, height)
-    const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])))
+    const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])), { tolerance: STATURE_TOLERANCE_MM / 1000 })
+    const warm = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])), { initial: previousControls, tolerance: STATURE_TOLERANCE_MM / 1000 })
+    previousControls = warm.controls
+    assert.ok(warm.maxError * 1000 <= STATURE_TOLERANCE_MM, `${entry.id}: warm solve matches all dimensions at ${height}`)
+    for (const name of solver.controlNames) assert.ok(Math.abs(warm.controls[name]-solution.controls[name]) < .003, `${entry.id}: edit order does not change ${name}`)
     applyPose(person, solver.pose(solution.controls))
     person.root.updateMatrixWorld(true)
     const points = rig.vertices.source.map((vertex, local) => rig.vertices.sourceMeshes[local] === 'Body'
       ? body.applyBoneTransform(vertex, new THREE.Vector3().fromBufferAttribute(body.geometry.getAttribute('position'), vertex))
       : new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN))
-    const actual = measureWithThree(rig, points)
+    const actual = measureWithThree(rig, points, person.bones)
     for (const [name, target] of Object.entries(targets)) {
       assert.ok(Math.abs(actual[name] * 1000 - target) < MAX_ERROR_MM, `${entry.id} at ${height}: app ${name} matches target`)
     }
-    const growth = height / authored.stature
+    const growth = targets.headWidth / authored.headWidth
     for (const { mesh, vertices, restSize } of samples) {
       const bounds = new THREE.Box3().setFromPoints(vertices.map((vertex) => mesh.applyBoneTransform(vertex, new THREE.Vector3().fromBufferAttribute(mesh.geometry.getAttribute('position'), vertex))))
       const size = bounds.getSize(new THREE.Vector3())
       for (const axis of ['x', 'y', 'z']) assert.ok(Math.abs(size[axis] - restSize[axis] * growth) < .0001, `${entry.id} ${mesh.name}: head ${axis} grows with stature at ${height}`)
     }
-    for (const name of ['neck', 'head']) {
-      const scale = person.bones[rig.bones.findIndex((bone) => bone.name === name)].getWorldScale(new THREE.Vector3())
-      for (const axis of ['x', 'y', 'z']) assert.ok(Math.abs(scale[axis] - growth) < .001, `${entry.id}: ${name} scales proportionally in ${axis}`)
+    const shoulderGrowth = actual.biacromialBreadth * 1000 / authored.biacromialBreadth
+    const headGrowth = actual.headWidth * 1000 / authored.headWidth
+    assert.ok(headGrowth / shoulderGrowth > .94 && headGrowth / shoulderGrowth < 1.07, `${entry.id}: head stays balanced against shoulders at ${height}`)
+    assert.ok(headGrowth / (height/authored.stature) > .82 && headGrowth / (height/authored.stature) < 1.25, `${entry.id}: head avoids both extreme size policies`)
+    const handGrowth = actual.handWidth * 1000 / authored.handWidth
+    assert.ok(handGrowth/shoulderGrowth > .92 && handGrowth/shoulderGrowth < 1.1, `${entry.id}: hands retain their scale relative to the body`)
+    const bodyPositions = body.geometry.getAttribute('position')
+    const bodyIndices = body.geometry.getAttribute('skinIndex')
+    const bodyWeights = body.geometry.getAttribute('skinWeight')
+    for (const name of ['arm.L','arm.R','forearm.L','forearm.R']) {
+      const index = rig.bones.findIndex(bone=>bone.name===name)
+      const basis = rig.bones[index].basis
+      // Project actual pure-limb geometry perpendicular to its anatomical axis.
+      // An XYZ length control fails this independent silhouette constraint.
+      for (const offset of [0,6]) {
+        const radial = new THREE.Vector3(...basis.slice(offset,offset+3))
+        const restSpan = [], posedSpan = []
+        for (let vertex=0; vertex<bodyPositions.count; vertex++) {
+          if (bodyIndices.getX(vertex)!==index || bodyWeights.getX(vertex)<.9999) continue
+          const point = new THREE.Vector3().fromBufferAttribute(bodyPositions,vertex)
+          restSpan.push(point.dot(radial))
+          posedSpan.push(body.applyBoneTransform(vertex,point).dot(radial))
+        }
+        assert.ok(restSpan.length>20, `${entry.id} ${name}: enough surface samples`)
+        const widthGrowth = (Math.max(...posedSpan)-Math.min(...posedSpan))/(Math.max(...restSpan)-Math.min(...restSpan))
+        assert.ok(widthGrowth/shoulderGrowth>.96 && widthGrowth/shoulderGrowth<1.04, `${entry.id} ${name}: transverse size stays balanced at ${height}, ratio ${widthGrowth/shoulderGrowth}`)
+      }
     }
   }
   for (const mesh of person.meshes) mesh.geometry.dispose()

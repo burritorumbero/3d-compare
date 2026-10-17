@@ -122,7 +122,7 @@ DROPPED_SURFACES = ("EyeMoisture", "Cornea", "Tear")
 TEXTURE_LIMITS = {"Head": 2048, "default": 1024, "Eye": 512, "Eyelashes": 512, "Eyebrows": 512, "Mouth": 512, "Teeth": 512}
 
 # Segment bones of the stature rig, in rig order. Must match scripts/person-rig.mjs.
-BONES = ["root", "foot.L", "foot.R", "shin.L", "shin.R", "thigh.L", "thigh.R", "pelvis", "chest", "neck", "head", "arm.L", "arm.R"]
+BONES = ["root", "foot.L", "foot.R", "shin.L", "shin.R", "thigh.L", "thigh.R", "pelvis", "chest", "neck", "head", "arm.L", "arm.R", "forearm.L", "forearm.R", "hand.L", "hand.R"]
 BONE = {name: index for index, name in enumerate(BONES)}
 # Landmark ids in the `_LANDMARK` attribute. Must match scripts/person-rig.mjs.
 LANDMARKS = {
@@ -385,6 +385,13 @@ def region_weights(body):
     total_weight = covered + regions["core"]
     for key in regions:
         regions[key] = regions[key] / np.maximum(total_weight, 1e-6)
+    # Keep anatomical arm regions instead of folding hands/fingers into one bone.
+    for side in ("l", "r"):
+        for region, prefixes in (("upperarm", ("upperarmtwist",)), ("forearm", ("forearmtwist",)),
+                                 ("hand", ("hand", "index", "mid", "ring", "pinky", "thumb", "metacarpal"))):
+            raw = total(lambda n, s=side, parts=prefixes: n.startswith(f"{s}_") and "toe" not in n
+                        and any(n[2:].startswith(part) for part in parts))
+            regions[f"{region}.{side}"] = raw / np.maximum(total_weight, 1e-6)
     return regions
 
 
@@ -453,7 +460,7 @@ def landmark_height(body, marks, name):
     return co[:, 2].max() - floor
 
 
-def segment_weights(points, regions, levels, blend):
+def segment_weights(points, regions, levels, blend, pivots):
     """Per vertex weights over BONES from region memberships and landmark heights."""
     heights = points[:, 2]
     weights = np.zeros((len(points), len(BONES)))
@@ -464,10 +471,20 @@ def segment_weights(points, regions, levels, blend):
         weights[:, BONE[f"foot.{suffix}"]] += leg * (1 - above_ankle)
         weights[:, BONE[f"shin.{suffix}"]] += leg * above_ankle * (1 - above_knee)
         weights[:, BONE[f"thigh.{suffix}"]] += leg * above_knee
-        weights[:, BONE[f"arm.{suffix}"]] += regions[f"arm.{side}"]
-    above_shoulder = smoothstep(levels["shoulder"] - blend, levels["shoulder"] + blend, heights)
-    weights[:, BONE["pelvis"]] += regions["core"] * (1 - above_shoulder)
-    weights[:, BONE["chest"]] += regions["core"] * above_shoulder
+        shoulder = np.asarray(pivots[f"arm.{suffix}"])
+        upper = np.asarray(pivots[f"forearm.{suffix}"]) - shoulder
+        upper_length = np.linalg.norm(upper)
+        along = (points - shoulder) @ (upper / upper_length)
+        # The acromion belongs to the shoulder girdle. Blend into the upper arm
+        # below the joint, so changing girth cannot move the breadth landmark.
+        into_arm = smoothstep(0.0, upper_length * 0.25, along)
+        weights[:, BONE[f"arm.{suffix}"]] += regions[f"upperarm.{side}"] * into_arm
+        weights[:, BONE["chest"]] += regions[f"upperarm.{side}"] * (1 - into_arm)
+        weights[:, BONE[f"forearm.{suffix}"]] += regions[f"forearm.{side}"]
+        weights[:, BONE[f"hand.{suffix}"]] += regions[f"hand.{side}"]
+    above_waist = smoothstep(levels["waist"] - blend * 2, levels["waist"] + blend * 2, heights)
+    weights[:, BONE["pelvis"]] += regions["core"] * (1 - above_waist)
+    weights[:, BONE["chest"]] += regions["core"] * above_waist
     weights[:, BONE["neck"]] += regions["neck"]
     weights[:, BONE["head"]] += regions["head"]
     return weights / np.maximum(weights.sum(axis=1, keepdims=True), 1e-6)
@@ -492,10 +509,43 @@ def rig_body_and_accessories(body, accessories):
     stature = max(v.co.z for v in body.data.vertices) - floor
     levels = {name: landmark_height(body, marks, name) + floor for name in ("ankle", "knee", "crotch", "neck", "ear")}
     levels["shoulder"] = landmark_height(body, marks, "shoulderLeft") + floor
+    levels["waist"] = levels["crotch"] + 0.45 * (levels["shoulder"] - levels["crotch"])
     blend = 0.012 * stature
 
     body_points = np.array([v.co[:] for v in body.data.vertices])
-    body_weights = segment_weights(body_points, regions, levels, blend)
+    # Bone pivots, in Blender coordinates (z up, -y forward); the rig writer converts.
+    co = body_points
+    left_shoulder = co[marks["shoulderLeft"][0]]
+    heel_y = co[marks["soleEnds"]][:, 1].max()
+    pivots = {
+        "root": [0, 0, floor],
+        "foot.L": [0, heel_y, floor],
+        "foot.R": [0, heel_y, floor],
+        "shin.L": [0, 0, levels["ankle"]],
+        "shin.R": [0, 0, levels["ankle"]],
+        "thigh.L": [0, 0, levels["knee"]],
+        "thigh.R": [0, 0, levels["knee"]],
+        "pelvis": [0, 0, levels["crotch"]],
+        "chest": [0, 0, levels["waist"]],
+        "neck": [0, 0, levels["neck"]],
+        "head": [0, co[marks["ear"][0]][1], levels["ear"]],
+        # Shoulder joints sit just inside the surface acromia.
+        "arm.L": [left_shoulder[0] - 0.03, left_shoulder[1], left_shoulder[2] - 0.04],
+        "arm.R": [-(left_shoulder[0] - 0.03), left_shoulder[1], left_shoulder[2] - 0.04],
+    }
+    for side, suffix in (("l", "L"), ("r", "R")):
+        arm = regions[f"arm.{side}"]
+        forearm = regions[f"forearm.{side}"]
+        hand = regions[f"hand.{side}"]
+        elbow_ring = (arm > 0.95) & (forearm > 0.25) & (forearm < 0.75) & (hand < 0.05)
+        wrist_ring = (arm > 0.95) & (hand > 0.35) & (hand < 0.65)
+        if not elbow_ring.any() or not wrist_ring.any():
+            raise RuntimeError(f"Missing anatomical elbow/wrist transition for {suffix}.")
+        pivots[f"forearm.{suffix}"] = co[elbow_ring].mean(axis=0).tolist()
+        pivots[f"hand.{suffix}"] = co[wrist_ring].mean(axis=0).tolist()
+        log(f"{suffix} shoulder/elbow/wrist: {pivots[f'arm.{suffix}']}, {pivots[f'forearm.{suffix}']}, {pivots[f'hand.{suffix}']}")
+
+    body_weights = segment_weights(body_points, regions, levels, blend, pivots)
     index, weight = top_four(body_weights)
     write_vector_attribute(body, "_SKIN_INDEX", index)
     write_vector_attribute(body, "_SKIN_WEIGHT", weight)
@@ -519,26 +569,6 @@ def rig_body_and_accessories(body, accessories):
         write_vector_attribute(obj, "_SKIN_INDEX", index)
         write_vector_attribute(obj, "_SKIN_WEIGHT", weight)
 
-    # Bone pivots, in Blender coordinates (z up, -y forward); the rig writer converts.
-    co = body_points
-    left_shoulder = co[marks["shoulderLeft"][0]]
-    heel_y = co[marks["soleEnds"]][:, 1].max()
-    pivots = {
-        "root": [0, 0, floor],
-        "foot.L": [0, heel_y, floor],
-        "foot.R": [0, heel_y, floor],
-        "shin.L": [0, 0, levels["ankle"]],
-        "shin.R": [0, 0, levels["ankle"]],
-        "thigh.L": [0, 0, levels["knee"]],
-        "thigh.R": [0, 0, levels["knee"]],
-        "pelvis": [0, 0, levels["crotch"]],
-        "chest": [0, 0, levels["shoulder"]],
-        "neck": [0, 0, levels["neck"]],
-        "head": [0, co[marks["ear"][0]][1], levels["ear"]],
-        # Arms scale uniformly about the shoulder joint, just inside the acromion.
-        "arm.L": [left_shoulder[0] - 0.03, left_shoulder[1], left_shoulder[2] - 0.04],
-        "arm.R": [-(left_shoulder[0] - 0.03), left_shoulder[1], left_shoulder[2] - 0.04],
-    }
     body["rigPivots"] = json.dumps({name: [float(v) for v in value] for name, value in pivots.items()})
     log(f"landmarks: stature {stature * 1000:.0f} mm, " + ", ".join(f"{k} {(v - floor) * 1000:.0f}" for k, v in levels.items()))
 

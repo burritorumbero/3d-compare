@@ -1,0 +1,632 @@
+[
+  {
+    "label": "Sloane",
+    "angle": "front",
+    "heightMm": 900,
+    "maxErrorMm": 0.0003033700687327112,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-front-900.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "side",
+    "heightMm": 900,
+    "maxErrorMm": 0.0003033700687327112,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-side-900.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "three-quarter",
+    "heightMm": 900,
+    "maxErrorMm": 0.0003033700687327112,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-three-quarter-900.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "front",
+    "heightMm": 1755.112,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-front-1755.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "side",
+    "heightMm": 1755.112,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-side-1755.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "three-quarter",
+    "heightMm": 1755.112,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-three-quarter-1755.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "front",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00013144852784030547,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-front-2000.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "side",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00013144852784030547,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-side-2000.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "three-quarter",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00013144852784030547,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-three-quarter-2000.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "front",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0003166943689514312,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-front-2400.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "side",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0003166943689514312,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-side-2400.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "three-quarter",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0003166943689514312,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-three-quarter-2400.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "front",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0005461713930010603,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-front-3048.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "side",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0005461713930010603,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-side-3048.png"
+  },
+  {
+    "label": "Sloane",
+    "angle": "three-quarter",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0005461713930010603,
+    "path": "/tmp/3d-compare-stature-fixed/sloane-three-quarter-3048.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "front",
+    "heightMm": 900,
+    "maxErrorMm": 0.00026768521810272006,
+    "path": "/tmp/3d-compare-stature-fixed/ari-front-900.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "side",
+    "heightMm": 900,
+    "maxErrorMm": 0.00026768521810272006,
+    "path": "/tmp/3d-compare-stature-fixed/ari-side-900.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "three-quarter",
+    "heightMm": 900,
+    "maxErrorMm": 0.00026768521810272006,
+    "path": "/tmp/3d-compare-stature-fixed/ari-three-quarter-900.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "front",
+    "heightMm": 1705.252,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/ari-front-1705.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "side",
+    "heightMm": 1705.252,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/ari-side-1705.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "three-quarter",
+    "heightMm": 1705.252,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/ari-three-quarter-1705.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "front",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00014969833195266347,
+    "path": "/tmp/3d-compare-stature-fixed/ari-front-2000.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "side",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00014969833195266347,
+    "path": "/tmp/3d-compare-stature-fixed/ari-side-2000.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "three-quarter",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00014969833195266347,
+    "path": "/tmp/3d-compare-stature-fixed/ari-three-quarter-2000.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "front",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0003267888986080436,
+    "path": "/tmp/3d-compare-stature-fixed/ari-front-2400.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "side",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0003267888986080436,
+    "path": "/tmp/3d-compare-stature-fixed/ari-side-2400.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "three-quarter",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0003267888986080436,
+    "path": "/tmp/3d-compare-stature-fixed/ari-three-quarter-2400.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "front",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0005477177928980836,
+    "path": "/tmp/3d-compare-stature-fixed/ari-front-3048.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "side",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0005477177928980836,
+    "path": "/tmp/3d-compare-stature-fixed/ari-side-3048.png"
+  },
+  {
+    "label": "Ari",
+    "angle": "three-quarter",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0005477177928980836,
+    "path": "/tmp/3d-compare-stature-fixed/ari-three-quarter-3048.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "front",
+    "heightMm": 900,
+    "maxErrorMm": 0.00023330059784054669,
+    "path": "/tmp/3d-compare-stature-fixed/mika-front-900.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "side",
+    "heightMm": 900,
+    "maxErrorMm": 0.00023330059784054669,
+    "path": "/tmp/3d-compare-stature-fixed/mika-side-900.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "three-quarter",
+    "heightMm": 900,
+    "maxErrorMm": 0.00023330059784054669,
+    "path": "/tmp/3d-compare-stature-fixed/mika-three-quarter-900.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "front",
+    "heightMm": 1695.989,
+    "maxErrorMm": 1.3877787807814457e-14,
+    "path": "/tmp/3d-compare-stature-fixed/mika-front-1696.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "side",
+    "heightMm": 1695.989,
+    "maxErrorMm": 1.3877787807814457e-14,
+    "path": "/tmp/3d-compare-stature-fixed/mika-side-1696.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "three-quarter",
+    "heightMm": 1695.989,
+    "maxErrorMm": 1.3877787807814457e-14,
+    "path": "/tmp/3d-compare-stature-fixed/mika-three-quarter-1696.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "front",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00013605701987273733,
+    "path": "/tmp/3d-compare-stature-fixed/mika-front-2000.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "side",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00013605701987273733,
+    "path": "/tmp/3d-compare-stature-fixed/mika-side-2000.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "three-quarter",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00013605701987273733,
+    "path": "/tmp/3d-compare-stature-fixed/mika-three-quarter-2000.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "front",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0002926438085193439,
+    "path": "/tmp/3d-compare-stature-fixed/mika-front-2400.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "side",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0002926438085193439,
+    "path": "/tmp/3d-compare-stature-fixed/mika-side-2400.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "three-quarter",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0002926438085193439,
+    "path": "/tmp/3d-compare-stature-fixed/mika-three-quarter-2400.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "front",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0004886419038285794,
+    "path": "/tmp/3d-compare-stature-fixed/mika-front-3048.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "side",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0004886419038285794,
+    "path": "/tmp/3d-compare-stature-fixed/mika-side-3048.png"
+  },
+  {
+    "label": "Mika",
+    "angle": "three-quarter",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0004886419038285794,
+    "path": "/tmp/3d-compare-stature-fixed/mika-three-quarter-3048.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "front",
+    "heightMm": 900,
+    "maxErrorMm": 0.0005518385999270237,
+    "path": "/tmp/3d-compare-stature-fixed/luca-front-900.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "side",
+    "heightMm": 900,
+    "maxErrorMm": 0.0005518385999270237,
+    "path": "/tmp/3d-compare-stature-fixed/luca-side-900.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "three-quarter",
+    "heightMm": 900,
+    "maxErrorMm": 0.0005518385999270237,
+    "path": "/tmp/3d-compare-stature-fixed/luca-three-quarter-900.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "front",
+    "heightMm": 1704.3310000000001,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/luca-front-1704.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "side",
+    "heightMm": 1704.3310000000001,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/luca-side-1704.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "three-quarter",
+    "heightMm": 1704.3310000000001,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/luca-three-quarter-1704.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "front",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00030491690750089617,
+    "path": "/tmp/3d-compare-stature-fixed/luca-front-2000.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "side",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00030491690750089617,
+    "path": "/tmp/3d-compare-stature-fixed/luca-side-2000.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "three-quarter",
+    "heightMm": 2000,
+    "maxErrorMm": 0.00030491690750089617,
+    "path": "/tmp/3d-compare-stature-fixed/luca-three-quarter-2000.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "front",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0007259992451658093,
+    "path": "/tmp/3d-compare-stature-fixed/luca-front-2400.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "side",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0007259992451658093,
+    "path": "/tmp/3d-compare-stature-fixed/luca-side-2400.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "three-quarter",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0007259992451658093,
+    "path": "/tmp/3d-compare-stature-fixed/luca-three-quarter-2400.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "front",
+    "heightMm": 3048,
+    "maxErrorMm": 0.001264635121511759,
+    "path": "/tmp/3d-compare-stature-fixed/luca-front-3048.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "side",
+    "heightMm": 3048,
+    "maxErrorMm": 0.001264635121511759,
+    "path": "/tmp/3d-compare-stature-fixed/luca-side-3048.png"
+  },
+  {
+    "label": "Luca",
+    "angle": "three-quarter",
+    "heightMm": 3048,
+    "maxErrorMm": 0.001264635121511759,
+    "path": "/tmp/3d-compare-stature-fixed/luca-three-quarter-3048.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "front",
+    "heightMm": 900,
+    "maxErrorMm": 0.000625317418512239,
+    "path": "/tmp/3d-compare-stature-fixed/miles-front-900.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "side",
+    "heightMm": 900,
+    "maxErrorMm": 0.000625317418512239,
+    "path": "/tmp/3d-compare-stature-fixed/miles-side-900.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "three-quarter",
+    "heightMm": 900,
+    "maxErrorMm": 0.000625317418512239,
+    "path": "/tmp/3d-compare-stature-fixed/miles-three-quarter-900.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "front",
+    "heightMm": 1724.228,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/miles-front-1724.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "side",
+    "heightMm": 1724.228,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/miles-side-1724.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "three-quarter",
+    "heightMm": 1724.228,
+    "maxErrorMm": 0,
+    "path": "/tmp/3d-compare-stature-fixed/miles-three-quarter-1724.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "front",
+    "heightMm": 2000,
+    "maxErrorMm": 0.0003210381016582886,
+    "path": "/tmp/3d-compare-stature-fixed/miles-front-2000.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "side",
+    "heightMm": 2000,
+    "maxErrorMm": 0.0003210381016582886,
+    "path": "/tmp/3d-compare-stature-fixed/miles-side-2000.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "three-quarter",
+    "heightMm": 2000,
+    "maxErrorMm": 0.0003210381016582886,
+    "path": "/tmp/3d-compare-stature-fixed/miles-three-quarter-2000.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "front",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0007942707513919345,
+    "path": "/tmp/3d-compare-stature-fixed/miles-front-2400.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "side",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0007942707513919345,
+    "path": "/tmp/3d-compare-stature-fixed/miles-side-2400.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "three-quarter",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0007942707513919345,
+    "path": "/tmp/3d-compare-stature-fixed/miles-three-quarter-2400.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "front",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0013905431730520945,
+    "path": "/tmp/3d-compare-stature-fixed/miles-front-3048.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "side",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0013905431730520945,
+    "path": "/tmp/3d-compare-stature-fixed/miles-side-3048.png"
+  },
+  {
+    "label": "Miles",
+    "angle": "three-quarter",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0013905431730520945,
+    "path": "/tmp/3d-compare-stature-fixed/miles-three-quarter-3048.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "front",
+    "heightMm": 900,
+    "maxErrorMm": 0.0009182927979134448,
+    "path": "/tmp/3d-compare-stature-fixed/owen-front-900.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "side",
+    "heightMm": 900,
+    "maxErrorMm": 0.0009182927979134448,
+    "path": "/tmp/3d-compare-stature-fixed/owen-side-900.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "three-quarter",
+    "heightMm": 900,
+    "maxErrorMm": 0.0009182927979134448,
+    "path": "/tmp/3d-compare-stature-fixed/owen-three-quarter-900.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "front",
+    "heightMm": 1710.365,
+    "maxErrorMm": 2.220446049250313e-13,
+    "path": "/tmp/3d-compare-stature-fixed/owen-front-1710.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "side",
+    "heightMm": 1710.365,
+    "maxErrorMm": 2.220446049250313e-13,
+    "path": "/tmp/3d-compare-stature-fixed/owen-side-1710.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "three-quarter",
+    "heightMm": 1710.365,
+    "maxErrorMm": 2.220446049250313e-13,
+    "path": "/tmp/3d-compare-stature-fixed/owen-three-quarter-1710.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "front",
+    "heightMm": 2000,
+    "maxErrorMm": 0.0004983191617125016,
+    "path": "/tmp/3d-compare-stature-fixed/owen-front-2000.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "side",
+    "heightMm": 2000,
+    "maxErrorMm": 0.0004983191617125016,
+    "path": "/tmp/3d-compare-stature-fixed/owen-side-2000.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "three-quarter",
+    "heightMm": 2000,
+    "maxErrorMm": 0.0004983191617125016,
+    "path": "/tmp/3d-compare-stature-fixed/owen-three-quarter-2000.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "front",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0011996422841775711,
+    "path": "/tmp/3d-compare-stature-fixed/owen-front-2400.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "side",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0011996422841775711,
+    "path": "/tmp/3d-compare-stature-fixed/owen-side-2400.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "three-quarter",
+    "heightMm": 2400,
+    "maxErrorMm": 0.0011996422841775711,
+    "path": "/tmp/3d-compare-stature-fixed/owen-three-quarter-2400.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "front",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0020906956161859114,
+    "path": "/tmp/3d-compare-stature-fixed/owen-front-3048.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "side",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0020906956161859114,
+    "path": "/tmp/3d-compare-stature-fixed/owen-side-3048.png"
+  },
+  {
+    "label": "Owen",
+    "angle": "three-quarter",
+    "heightMm": 3048,
+    "maxErrorMm": 0.0020906956161859114,
+    "path": "/tmp/3d-compare-stature-fixed/owen-three-quarter-3048.png"
+  }
+]

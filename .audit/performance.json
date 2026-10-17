@@ -2,8 +2,8 @@
   "models": [
     {
       "file": "female-tan-dress.glb",
-      "glbBytes": 4668636,
-      "rigBytes": 550918,
+      "glbBytes": 4641480,
+      "rigBytes": 559681,
       "previewBytes": 12264,
       "triangles": 150626,
       "drawCalls": 23,
@@ -12,8 +12,8 @@
     },
     {
       "file": "female-dark-jeans-tshirt.glb",
-      "glbBytes": 4019892,
-      "rigBytes": 660701,
+      "glbBytes": 4008920,
+      "rigBytes": 679419,
       "previewBytes": 11348,
       "triangles": 188408,
       "drawCalls": 19,
@@ -22,8 +22,8 @@
     },
     {
       "file": "female-pale-shorts-croptop.glb",
-      "glbBytes": 4253112,
-      "rigBytes": 664712,
+      "glbBytes": 4239948,
+      "rigBytes": 683303,
       "previewBytes": 9660,
       "triangles": 162877,
       "drawCalls": 32,
@@ -32,8 +32,8 @@
     },
     {
       "file": "male-tan-shorts-tshirt.glb",
-      "glbBytes": 3665572,
-      "rigBytes": 660268,
+      "glbBytes": 3656180,
+      "rigBytes": 679424,
       "previewBytes": 7354,
       "triangles": 161201,
       "drawCalls": 31,
@@ -42,8 +42,8 @@
     },
     {
       "file": "male-dark-jeans-sleeveless.glb",
-      "glbBytes": 3883656,
-      "rigBytes": 667435,
+      "glbBytes": 3887252,
+      "rigBytes": 689693,
       "previewBytes": 6748,
       "triangles": 175529,
       "drawCalls": 34,
@@ -52,8 +52,8 @@
     },
     {
       "file": "male-pale-trousers-shirt.glb",
-      "glbBytes": 4534108,
-      "rigBytes": 696234,
+      "glbBytes": 4547268,
+      "rigBytes": 736289,
       "previewBytes": 16468,
       "triangles": 221648,
       "drawCalls": 22,
@@ -115,19 +115,19 @@
   ],
   "assets": [
     {
-      "file": "index-BxjYLDsR.css",
-      "bytes": 29829,
-      "gzipBytes": 7112
+      "file": "index-r7bwdD4b.css",
+      "bytes": 29944,
+      "gzipBytes": 7154
     },
     {
-      "file": "index-DMvbsGrn.js",
-      "bytes": 339400,
-      "gzipBytes": 103007
+      "file": "index-t_U1WN-n.js",
+      "bytes": 341258,
+      "gzipBytes": 103625
     },
     {
-      "file": "kernel_bg-C2gzpbkm.wasm",
-      "bytes": 84986,
-      "gzipBytes": 33404
+      "file": "kernel_bg-18-7svdR.wasm",
+      "bytes": 87568,
+      "gzipBytes": 34880
     },
     {
       "file": "react-D48Lzm2I.js",
@@ -140,15 +140,15 @@
       "gzipBytes": 428
     },
     {
-      "file": "three-Bw0rqu_h.js",
-      "bytes": 726783,
-      "gzipBytes": 184147
+      "file": "three-yoO0bY7c.js",
+      "bytes": 726791,
+      "gzipBytes": 184149
     }
   ],
   "totals": {
-    "javascriptBytes": 1256503,
-    "javascriptGzipBytes": 346534,
-    "allModelBytes": 29748144,
+    "javascriptBytes": 1258369,
+    "javascriptGzipBytes": 347154,
+    "allModelBytes": 29704216,
     "allPreviewBytes": 124460,
     "allSkinDownloadBytes": 228656,
     "allSkinTextureBytes": 25276424,

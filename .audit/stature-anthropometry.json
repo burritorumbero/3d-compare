@@ -1,0 +1,364 @@
+{
+  "method": {
+    "model": "measurement_mm = coefficient * stature_mm ** exponent",
+    "estimator": "Unweighted ordinary least squares of natural-log measurement on natural-log stature, with intercept",
+    "rSquared": "Computed in natural-log space",
+    "scope": "Cross-sectional associations in the separately analyzed female/male public ANSUR II working datasets; not longitudinal growth or validated extreme-height predictions",
+    "poseCaution": "Flexed upper-arm and forearm circumferences are not relaxed A-pose circumference targets",
+    "reproduce": "python3 .audit/stature-anthropometry.py > .audit/stature-anthropometry.json"
+  },
+  "sexes": {
+    "female": {
+      "sourceUrl": "https://tools.openlab.psu.edu/publicData/ANSUR_II_FEMALE_Public.csv",
+      "sha256VerifiedByRows": "ed7e800aa97a4d42f8286b988be2fe1883a2e789588169db959864b707d1757a",
+      "sampleSize": 1986,
+      "statureMm": {
+        "min": 1409.0,
+        "p01": 1483.0,
+        "p50": 1626.0,
+        "p99": 1777.0,
+        "max": 1829.0
+      },
+      "ageYears": {
+        "min": 17.0,
+        "max": 58.0
+      },
+      "statureFits": {
+        "headAboveTragion": {
+          "measurement": "Tragion to top of head",
+          "sourceColumns": [
+            "tragiontopofhead"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 14.836287647482171,
+          "exponent": 0.28961904342381367,
+          "rSquaredLogSpace": 0.04817748990364106
+        },
+        "headBreadth": {
+          "measurement": "Head breadth",
+          "sourceColumns": [
+            "headbreadth"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 52.02887436568677,
+          "exponent": 0.1410801995401822,
+          "rSquaredLogSpace": 0.02512215228549855
+        },
+        "headLength": {
+          "measurement": "Head length, front to back",
+          "sourceColumns": [
+            "headlength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 13.368577874344094,
+          "exponent": 0.35869278548046085,
+          "rSquaredLogSpace": 0.12963183274930318
+        },
+        "headCircumference": {
+          "measurement": "Head circumference",
+          "sourceColumns": [
+            "headcircumference"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 72.6736588295872,
+          "exponent": 0.27633126405399494,
+          "rSquaredLogSpace": 0.10085403144986364
+        },
+        "neckCircumference": {
+          "measurement": "Neck circumference",
+          "sourceColumns": [
+            "neckcircumference"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 13.076842393554232,
+          "exponent": 0.4362576907861341,
+          "rSquaredLogSpace": 0.0892292004328801
+        },
+        "flexedUpperArmCircumference": {
+          "measurement": "Flexed upper-arm circumference (ANSUR biceps circumference, flexed)",
+          "sourceColumns": [
+            "bicepscircumferenceflexed"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 2.7855340685971517,
+          "exponent": 0.6346211012662858,
+          "rSquaredLogSpace": 0.06311718460579577
+        },
+        "flexedForearmCircumference": {
+          "measurement": "Forearm circumference, flexed",
+          "sourceColumns": [
+            "forearmcircumferenceflexed"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 2.3990662665676936,
+          "exponent": 0.6354267722023835,
+          "rSquaredLogSpace": 0.12902964362531585
+        },
+        "wristCircumference": {
+          "measurement": "Wrist circumference",
+          "sourceColumns": [
+            "wristcircumference"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.8933945555227935,
+          "exponent": 0.6969309217860737,
+          "rSquaredLogSpace": 0.29706346678564016
+        },
+        "shoulderBreadth": {
+          "measurement": "Biacromial shoulder breadth",
+          "sourceColumns": [
+            "biacromialbreadth"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 1.790222791748157,
+          "exponent": 0.719070233776018,
+          "rSquaredLogSpace": 0.31760881081883846
+        },
+        "upperArmLength": {
+          "measurement": "Acromion-radiale length",
+          "sourceColumns": [
+            "acromionradialelength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.08219360742238832,
+          "exponent": 1.11399653591024,
+          "rSquaredLogSpace": 0.6304297397857701
+        },
+        "forearmLength": {
+          "measurement": "Radiale-stylion length",
+          "sourceColumns": [
+            "radialestylionlength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.06906105518727117,
+          "exponent": 1.103091415417271,
+          "rSquaredLogSpace": 0.47588881609289924
+        },
+        "armLength": {
+          "measurement": "Shoulder-to-wrist length, sum of upper-arm and forearm lengths",
+          "sourceColumns": [
+            "acromionradialelength",
+            "radialestylionlength"
+          ],
+          "sourceAggregation": "sum",
+          "coefficient": 0.15116768341493642,
+          "exponent": 1.1092411982632655,
+          "rSquaredLogSpace": 0.657565450344294
+        },
+        "handLength": {
+          "measurement": "Hand length",
+          "sourceColumns": [
+            "handlength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.22073949812676508,
+          "exponent": 0.907172494068383,
+          "rSquaredLogSpace": 0.418841513257039
+        },
+        "handBreadth": {
+          "measurement": "Hand breadth",
+          "sourceColumns": [
+            "handbreadth"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.9962667986465794,
+          "exponent": 0.5897822410466985,
+          "rSquaredLogSpace": 0.22417649929495587
+        }
+      },
+      "separateUnivariateWeightFits": {
+        "headCircumference": {
+          "predictor": "Raw stored weightkg column; multiplicative unit conversions do not change exponent or R\u00b2",
+          "exponent": 0.08155089799402672,
+          "rSquaredLogSpace": 0.14548043719321446
+        },
+        "flexedUpperArmCircumference": {
+          "predictor": "Raw stored weightkg column; multiplicative unit conversions do not change exponent or R\u00b2",
+          "exponent": 0.5323192120985242,
+          "rSquaredLogSpace": 0.7354899959311735
+        },
+        "flexedForearmCircumference": {
+          "predictor": "Raw stored weightkg column; multiplicative unit conversions do not change exponent or R\u00b2",
+          "exponent": 0.35660336505422374,
+          "rSquaredLogSpace": 0.6730436649248034
+        }
+      }
+    },
+    "male": {
+      "sourceUrl": "https://tools.openlab.psu.edu/publicData/ANSUR_II_MALE_Public.csv",
+      "sha256VerifiedByRows": "0547aea0170e5293de519389981135e75803f02e6d40c77ace740decc0caac64",
+      "sampleSize": 4082,
+      "statureMm": {
+        "min": 1491.0,
+        "p01": 1602.0,
+        "p50": 1755.0,
+        "p99": 1927.0,
+        "max": 1993.0
+      },
+      "ageYears": {
+        "min": 17.0,
+        "max": 58.0
+      },
+      "statureFits": {
+        "headAboveTragion": {
+          "measurement": "Tragion to top of head",
+          "sourceColumns": [
+            "tragiontopofhead"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 21.88822825283798,
+          "exponent": 0.23952120391347836,
+          "rSquaredLogSpace": 0.03922227407784236
+        },
+        "headBreadth": {
+          "measurement": "Head breadth",
+          "sourceColumns": [
+            "headbreadth"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 91.98781529795791,
+          "exponent": 0.06918178912921115,
+          "rSquaredLogSpace": 0.0057024907879337314
+        },
+        "headLength": {
+          "measurement": "Head length, front to back",
+          "sourceColumns": [
+            "headlength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 16.19413741282545,
+          "exponent": 0.3360795506648931,
+          "rSquaredLogSpace": 0.13793366175082933
+        },
+        "headCircumference": {
+          "measurement": "Head circumference",
+          "sourceColumns": [
+            "headcircumference"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 91.06602741057716,
+          "exponent": 0.24648807924349697,
+          "rSquaredLogSpace": 0.11868349100613762
+        },
+        "neckCircumference": {
+          "measurement": "Neck circumference",
+          "sourceColumns": [
+            "neckcircumference"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 35.08014272052783,
+          "exponent": 0.32474071973247925,
+          "rSquaredLogSpace": 0.03900003185712661
+        },
+        "flexedUpperArmCircumference": {
+          "measurement": "Flexed upper-arm circumference (ANSUR biceps circumference, flexed)",
+          "sourceColumns": [
+            "bicepscircumferenceflexed"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 10.591492164989466,
+          "exponent": 0.4706980922669279,
+          "rSquaredLogSpace": 0.035987331023297736
+        },
+        "flexedForearmCircumference": {
+          "measurement": "Forearm circumference, flexed",
+          "sourceColumns": [
+            "forearmcircumferenceflexed"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 5.154819158453164,
+          "exponent": 0.5480906022331504,
+          "rSquaredLogSpace": 0.0912119220887396
+        },
+        "wristCircumference": {
+          "measurement": "Wrist circumference",
+          "sourceColumns": [
+            "wristcircumference"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 1.4585940474258705,
+          "exponent": 0.641384972147983,
+          "rSquaredLogSpace": 0.24234454926459845
+        },
+        "shoulderBreadth": {
+          "measurement": "Biacromial shoulder breadth",
+          "sourceColumns": [
+            "biacromialbreadth"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 3.7643920473790655,
+          "exponent": 0.6296061455413331,
+          "rSquaredLogSpace": 0.28338747265418335
+        },
+        "upperArmLength": {
+          "measurement": "Acromion-radiale length",
+          "sourceColumns": [
+            "acromionradialelength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.11783972211501956,
+          "exponent": 1.0644932430844882,
+          "rSquaredLogSpace": 0.6332460906439951
+        },
+        "forearmLength": {
+          "measurement": "Radiale-stylion length",
+          "sourceColumns": [
+            "radialestylionlength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.10179515110270733,
+          "exponent": 1.0540200651706877,
+          "rSquaredLogSpace": 0.5135590317636467
+        },
+        "armLength": {
+          "measurement": "Shoulder-to-wrist length, sum of upper-arm and forearm lengths",
+          "sourceColumns": [
+            "acromionradialelength",
+            "radialestylionlength"
+          ],
+          "sourceAggregation": "sum",
+          "coefficient": 0.21957200217621284,
+          "exponent": 1.059807334193959,
+          "rSquaredLogSpace": 0.6687318214477572
+        },
+        "handLength": {
+          "measurement": "Hand length",
+          "sourceColumns": [
+            "handlength"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 0.25525085302785383,
+          "exponent": 0.887306618956094,
+          "rSquaredLogSpace": 0.45477217839589723
+        },
+        "handBreadth": {
+          "measurement": "Hand breadth",
+          "sourceColumns": [
+            "handbreadth"
+          ],
+          "sourceAggregation": "direct",
+          "coefficient": 1.0292138063695027,
+          "exponent": 0.5957404129534103,
+          "rSquaredLogSpace": 0.21881675566141268
+        }
+      },
+      "separateUnivariateWeightFits": {
+        "headCircumference": {
+          "predictor": "Raw stored weightkg column; multiplicative unit conversions do not change exponent or R\u00b2",
+          "exponent": 0.0857143369310243,
+          "rSquaredLogSpace": 0.25779706104517625
+        },
+        "flexedUpperArmCircumference": {
+          "predictor": "Raw stored weightkg column; multiplicative unit conversions do not change exponent or R\u00b2",
+          "exponent": 0.47891937741769763,
+          "rSquaredLogSpace": 0.6692095531830853
+        },
+        "flexedForearmCircumference": {
+          "predictor": "Raw stored weightkg column; multiplicative unit conversions do not change exponent or R\u00b2",
+          "exponent": 0.3472433983038796,
+          "rSquaredLogSpace": 0.6576388226448726
+        }
+      }
+    }
+  }
+}

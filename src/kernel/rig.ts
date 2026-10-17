@@ -4,13 +4,13 @@
  * reads it through `encodeRig`, which flattens it into typed arrays.
  *
  * Conventions the kernel relies on:
- * - Deform bones have an identity rest rotation, so a bone scale is an
- *   axis-aligned scale about the bone head. In three.js, `bone.scale` on such a
- *   bone produces exactly the deformation the kernel computes.
+ * - Bones bind with identity rest rotation. An optional orthonormal `basis`
+ *   gives the anatomical scale axes in rest mesh space. The kernel emits full
+ *   local affine matrices so oriented length/girth and parent cancellation agree.
  * - A bone inherits its parent's scale unless `inheritScale` is false; then it
  *   moves with its parent but keeps only its own scale (a longer shin lifts the
- *   thigh without stretching it). The kernel's pose gives three.js the local
- *   scale that reproduces this.
+ *   thigh without stretching it). The kernel compensates the parent's complete
+ *   linear transform, including anisotropy in a different basis.
  * - Scaling never lifts soles: feet rigs put bone heads on the floor, and body
  *   rigs chain upward from a root on the floor.
  * - `vertices` is a sample of the mesh: every vertex a measure or the hull uses.
@@ -26,6 +26,8 @@ export type RigChannel =
 export type RigMeasure =
   | { name: string; kind: 'extent' | 'max'; group: string; axis: Axis }
   | { name: string; kind: 'between'; from: string; to: string; axis: Axis }
+  | { name: string; kind: 'distance'; from: string; to: string }
+  | { name: string; kind: 'bonePath'; from: string; to: string }
 
 export type RigFile = {
   version: 1
@@ -35,6 +37,8 @@ export type RigFile = {
     name: string
     parent: string | null
     head: readonly [number, number, number]
+    /** Column-major orthonormal scale basis, default identity. Its y axis follows a limb. */
+    basis?: readonly number[]
     /** Defaults to true. */
     inheritScale?: boolean
   }[]
@@ -61,6 +65,7 @@ export type EncodedRig = {
   heads: Float64Array
   /** 1 when the bone inherits its parent's scale. */
   inheritScale: Uint8Array
+  bases: Float64Array
   positions: Float64Array
   skinBones: Uint32Array
   skinWeights: Float64Array
@@ -117,11 +122,12 @@ export function encodeRig(rig: RigFile): EncodedRig {
     groupOffsets.push(groupMembers.length)
   }
 
-  const measures = rig.measures.flatMap((measure) =>
-    measure.kind === 'between'
-      ? [2, lookup(groupNames, measure.from, 'group'), lookup(groupNames, measure.to, 'group'), AXES[measure.axis]]
-      : [measure.kind === 'extent' ? 0 : 1, lookup(groupNames, measure.group, 'group'), 0, AXES[measure.axis]],
-  )
+  const measures = rig.measures.flatMap((measure) => {
+    if (measure.kind === 'bonePath') return [4, lookup(boneNames, measure.from, 'bone'), lookup(boneNames, measure.to, 'bone'), 0]
+    if (measure.kind === 'distance') return [3, lookup(groupNames, measure.from, 'group'), lookup(groupNames, measure.to, 'group'), 0]
+    if (measure.kind === 'between') return [2, lookup(groupNames, measure.from, 'group'), lookup(groupNames, measure.to, 'group'), AXES[measure.axis]]
+    return [measure.kind === 'extent' ? 0 : 1, lookup(groupNames, measure.group, 'group'), 0, AXES[measure.axis]]
+  })
 
   return {
     parents: Int32Array.from(rig.bones, (bone) =>
@@ -129,6 +135,7 @@ export function encodeRig(rig: RigFile): EncodedRig {
     ),
     heads: Float64Array.from(rig.bones.flatMap((bone) => bone.head)),
     inheritScale: Uint8Array.from(rig.bones, (bone) => (bone.inheritScale === false ? 0 : 1)),
+    bases: Float64Array.from(rig.bones.flatMap((bone) => bone.basis ?? [1, 0, 0, 0, 1, 0, 0, 0, 1])),
     positions: Float64Array.from(rig.vertices.positions),
     skinBones: Uint32Array.from(rig.vertices.skinBones),
     skinWeights: Float64Array.from(rig.vertices.skinWeights),

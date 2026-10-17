@@ -3,7 +3,7 @@ import type { RigFile, RigPose } from '../kernel/index.ts'
 
 /**
  * Meshes skinned to bones rebuilt from a rig file. The bones follow the rig
- * contract (identity rest rotation, heads from the rig), so setting `bone.scale`
+ * contract (identity rest rotation, heads from the rig), so setting `bone.matrix`
  * to the kernel's pose deforms the meshes exactly as the kernel measured them.
  */
 export type Rigged = {
@@ -78,6 +78,28 @@ function cutoutTransparency(material: THREE.Material | THREE.Material[]): void {
   }
 }
 
+const normalMaterials = new WeakSet<THREE.Material>()
+
+/** Skin normals need the inverse transpose when length and girth differ. */
+function affineSkinNormals(material: THREE.Material | THREE.Material[]): void {
+  for (const each of Array.isArray(material) ? material : [material]) {
+    if (normalMaterials.has(each)) continue
+    normalMaterials.add(each)
+    const previous = each.onBeforeCompile
+    each.onBeforeCompile = (shader, renderer) => {
+      previous.call(each, shader, renderer)
+      shader.vertexShader = shader.vertexShader.replace('#include <skinnormal_vertex>', THREE.ShaderChunk.skinnormal_vertex.replace(
+        'objectNormal = vec4( skinMatrix * vec4( objectNormal, 0.0 ) ).xyz;',
+        `mat3 linearSkin = mat3(skinMatrix);
+        mat3 normalSkin = mat3(cross(linearSkin[1], linearSkin[2]), cross(linearSkin[2], linearSkin[0]), cross(linearSkin[0], linearSkin[1]));
+        objectNormal = normalSkin * objectNormal / dot(linearSkin[0], normalSkin[0]);`,
+      ))
+    }
+    each.customProgramCacheKey = () => 'affine-skin-normals-v1'
+    each.needsUpdate = true
+  }
+}
+
 /** Builds the bones for `rig` and skins every mesh under `node` to them. */
 export function rigNode(node: THREE.Object3D, rig: RigFile): Rigged {
   const bones = rig.bones.map((spec) => {
@@ -104,6 +126,7 @@ export function rigNode(node: THREE.Object3D, rig: RigFile): Rigged {
   const meshes = meshesUnder(node).map((source) => {
     ensureSkinAttributes(source.geometry)
     cutoutTransparency(source.material)
+    if (rig.bones.some((bone) => bone.basis)) affineSkinNormals(source.material)
     const skinned = new THREE.SkinnedMesh(source.geometry, source.material)
     skinned.name = source.name
     // Bounds change with the pose; the scene is small enough to skip culling.
@@ -117,10 +140,11 @@ export function rigNode(node: THREE.Object3D, rig: RigFile): Rigged {
   return { root, bones, meshes }
 }
 
-/** Applies a kernel pose (local bone scales in rig order) to a rigged model. */
+/** Keep the full matrix: decomposing oriented parent compensation loses shear. */
 export function applyPose(rigged: Rigged, pose: RigPose): void {
   rigged.bones.forEach((bone, index) => {
-    const [x, y, z] = pose.boneScales[index]
-    bone.scale.set(x, y, z)
+    bone.matrixAutoUpdate = false
+    bone.matrix.fromArray(pose.boneMatrices[index])
+    bone.matrixWorldNeedsUpdate = true
   })
 }
