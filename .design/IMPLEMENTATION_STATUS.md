@@ -49,7 +49,7 @@ The final domain, lint, production build, browser workflow, and live WebGL frame
 - The models are static A-pose meshes. There is no animation, pose control, or clothing control.
 - Each human model decodes to about 40 MB of GPU textures; all eight models total about 280 MB if every one is on stage.
 - Catalog cards show flat color swatches rather than rendered thumbnails of the models.
-- Human height uses uniform scaling. It does not solve body segments independently yet (Phase 5 of `PARAMETRIC_PLAN.md`).
+- Human height uses rigged allometric scaling (Phase 5 of `PARAMETRIC_PLAN.md`).
 - Shoe charts cover adult US 4 to 16 for men, US 4 to 14 for women, and EU 34 to 50.
 - Persistence is local to one browser. There is no account, cloud sync, or shareable URL.
 - The production JavaScript bundle includes Three.js and is about 1.16 MB before gzip. Vite reports its default 500 kB chunk warning.
@@ -115,4 +115,13 @@ This is Phase 5a of `.design/PARAMETRIC_PLAN.md`.
 - **Kernel.** It supports non-inheriting bones, so body segments lengthen independently while staying attached.
 - **Domain.** `src/domain/stature.ts` predicts ANSUR II landmark heights and breadths for any stature from 0.9 to 3.05 m, and carries a model's own proportions to a new height.
 - **Not wired in yet.** People still scale uniformly in the app until the rigged Genesis 9 people land (Phase 5b).
+- **Checks.** verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.
+
+## Follow-up: Genesis 9 people (2026-10-17)
+
+This is Phase 5b of `.design/PARAMETRIC_PLAN.md`.
+
+- **The people.** The six are now Daz Genesis 9 characters (Laura, Amala, Kat, Ty, Fabrice, Matt), with clothing, hair, eyes, lashes and brows, rebuilt by `npm run assets:people`.
+- **Sizing.** People are rigged with thirteen segment bones and sized by the kernel to ANSUR II proportions for their height, from 0.9 m to 3.05 m.
+- **Delivery.** GLBs use meshopt geometry and WebP textures.
 - **Checks.** verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.

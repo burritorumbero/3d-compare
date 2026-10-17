@@ -1,6 +1,6 @@
 # Parametric sizing: assessment and work plan
 
-Status, 2026-10-17: Phases 1–4 and 5a are done, and Phase 0 is partly done. See the checkboxes below.
+Status, 2026-10-17: Phases 1–5 are done, and Phase 0 is partly done. See the checkboxes below.
 
 ## Goal
 
@@ -192,19 +192,31 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
 
 ### Phase 5b: Genesis 9 people
 
-- [ ] `tools/assets/build_humans.py`:
-  - import each character with its body *and* head shape;
-  - add the Genesis 9 eyes, lashes and brows, clothing (fitted with the shape transferred) and hair;
-  - weight with segment groups from Genesis 9 bones (foot, shin, thigh, pelvis, chest, neck, head, arms), using non-inheriting segment bones;
-  - crop textures;
-  - export the GLB, then generate the rig file and landmark groups in Node.
-- [ ] Map the six characters onto the catalog:
-  - Laura (female, tan), Amala (female, dark) and Kat (female, pale/light);
-  - Ty (male, tan/light), Fabrice (male, dark) and Matt (male, pale);
-  - rename the catalog labels to match.
-- [ ] Runtime: generalize `rigged-foot.ts` to rigged figures (N-bone `_DEFORM_WEIGHTS` as skinIndex/skinWeight). Each person solves `statureTargets` for their height. The hit box, label, ring and lineup footprint come from the solved bounds.
-- [ ] Inspector note: "Proportions follow adult averages for this height".
-- [ ] Arms are scaled uniformly with the chest's arm bones (an A-pose diagonal can't take an axis-aligned length scale). Check at 0.9 m and 3.05 m.
+- [x] `tools/assets/build_people.py`, driven by `npm run assets:people`. About 40 s per person.
+  - **Import:** character, Genesis 9 Eyes, Eyelashes, Mouth and Eyebrows Card, then clothing. Hair imports separately, so whatever it adds counts as hair, whatever its mesh is called.
+  - **Shape:** body and head formula weights are set directly. Clothing, hair and eyes follow through an inverse-distance displacement field from the base body (k = 8).
+  - **Cleanup:** hair is thinned by whole cards to 30k faces. The eye moisture and tear films are dropped. Clothing hems are clamped to the floor (people are barefoot).
+  - **Weights:** regions come from Genesis 9 groups (toe groups excluded from the arms: they share finger prefixes). Within a region, segments split at landmark heights with smooth blends. Add-ons take the nearest body weights. Thirteen non-inheriting segment bones.
+  - **Landmarks** found by anatomy rules: outer ankle bone above the foot, front of the knee at the mid thigh-to-shin handover, crotch, outer shoulder tip, back of the neck base, front of the ear, crown, widest hips, sole ends and wrist ring. At authored stature they match ANSUR ratios: knee 0.276, crotch 0.477, shoulder 0.826, neck 0.857, ear 0.927.
+  - **Materials:**
+    - texture roles are found by following node links, then file names;
+    - Daz material presets (eyes, lashes, brows, mouth, hair colors) are parsed from their animation keys and layered image library;
+    - layers composite unscaled from the top-left in linear light, and preset tints are treated as sRGB;
+    - textures use straight alpha (OpenImageIO would otherwise premultiply);
+    - per-person `hair_tint` and `wear_tints` handle products shipped in neutral colors.
+- [x] People: Laura (dress), Amala (jeans and T-shirt), Kat (shorts and crop top), Ty (shorts and T-shirt), Fabrice (jeans and tank top), Matt (trousers and sweater). Each is 150–220k triangles and 4.8–6.4 MB after `build-people-assets.mjs` (8-bit skin attributes, WebP, meshopt FILTER, unquantized positions). Rigs are written from the shipped GLB, because meshopt reorders vertices.
+- [x] Runtime:
+  - `src/scene/rigged.ts` (generalized from the feet) skins every mesh under a node from `_skin_index`/`_skin_weight` or `_deform_weights`;
+  - card materials use alpha-to-coverage (MSAA) instead of blending (a 0.5 cutoff erased soft hair);
+  - `src/scene/rig-cache.ts` loads any rig file;
+  - people solve `statureTargets` for their height, warm-started;
+  - bounds drive the hit box, ring, label and shadow;
+  - lineup footprints follow the ANSUR arm-length ratio.
+- [x] Checks:
+  - `verify-models` now reads every model through glTF-Transform (meshopt and WebP allowed) and checks skin and landmark attributes;
+  - `verify-kernel`: shipped person rigs match their GLBs; 120 stature solves (0.9–3.05 m) with a worst error of 0.031 mm and nothing below the floor; the app's skinning agrees at 10 ft;
+  - `verify-ui` passes.
+- Known: 150–220k triangles per person (mostly hair cards and the body), so ten people is about 2M triangles. Hair and brows are textured cards, not strands.
 
 ### Phase 6: closeout
 
