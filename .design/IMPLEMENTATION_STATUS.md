@@ -107,3 +107,12 @@ This is Phase 4 of `.design/PARAMETRIC_PLAN.md`.
 - **How it works.** Feet are skinned meshes now. The WebAssembly kernel solves each placement's shape (foot length, toe length, ball width, instep height) to bone scales, and three.js deforms the Genesis 9 mesh with them.
 - **What you see.** Toes lengthen on their own, the forefoot widens, the arch rises, and the shin stays put.
 - **Checks.** verify:domain, verify:models, verify:kernel (including the app's skinning code), lint, build and verify:ui pass. The production build serves the kernel and the rigs.
+
+## Follow-up: stature solver (2026-10-17)
+
+This is Phase 5a of `.design/PARAMETRIC_PLAN.md`.
+
+- **Kernel.** It supports non-inheriting bones, so body segments lengthen independently while staying attached.
+- **Domain.** `src/domain/stature.ts` predicts ANSUR II landmark heights and breadths for any stature from 0.9 to 3.05 m, and carries a model's own proportions to a new height.
+- **Not wired in yet.** People still scale uniformly in the app until the rigged Genesis 9 people land (Phase 5b).
+- **Checks.** verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.
