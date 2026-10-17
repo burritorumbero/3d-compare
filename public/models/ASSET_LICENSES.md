@@ -4,6 +4,8 @@
 
 `female-feet-shins.glb` and `male-feet-shins.glb` are built from the Daz 3D characters **Laura for Genesis 9** and **Matt for Genesis 9** by `tools/assets/build_feet.py`: lower legs cut at mid-shin, subdivided once, with cropped base color, normal, and roughness maps. They are **not** CC0. They are Daz 3D content distributed under the Daz 3D license terms, and the project owner manages that licensing. The Daz source content stays in the local Daz library and never enters git. Their `*.rig.json` files are generated from the GLBs by `scripts/build-feet-assets.mjs`.
 
+The optional female White and Asian complexion maps in `public/skins` are cropped from the installed Genesis 9 **Feminine_02** and **Feminine_01** color, normal and roughness maps respectively, using `scripts/build-foot-skins.mjs`. They follow the same Daz licensing as the existing models. `public/skins/manifest.json` records the source filenames and crop bounds. Reference photographs cited in the visual review are not redistributed in the app.
+
 ## People (Daz 3D Genesis 9)
 
 The six people are built by `tools/assets/build_people.py` from Daz 3D Genesis 9 characters, clothing, and hair. They are **not** CC0. Like the feet, they are Daz 3D and Daz marketplace content distributed under those license terms, and the project owner manages that licensing.

@@ -27,6 +27,8 @@ try {
     { name: 'male-us20', query: 'mode=feet&shoe=US&f=foot-male:357', frame: true },
     { name: 'female-small', query: 'mode=feet&shoe=US&f=foot-female:208', frame: true },
     { name: 'male-eu58', query: 'mode=feet&shoe=EU&f=foot-male:376', frame: true },
+    { name: 'female-white-closeup', query: 'mode=feet&shoe=US&f=foot-female:242:swhite', frame: true },
+    { name: 'female-asian-closeup', query: 'mode=feet&shoe=US&f=foot-female:242:sasian', frame: true },
     ...['female', 'male'].map((sex) => ({
       name: `${sex}-skin-tones`,
       query: `mode=feet&shoe=US&f=${FOOT_SKIN_TONES.map((tone) => `foot-${sex}:${sex === 'female' ? 242 : 272}:s${tone}`).join(',')}`,
