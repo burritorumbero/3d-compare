@@ -2,16 +2,19 @@ import { Grid, Html } from '@react-three/drei'
 import type { ReactNode } from 'react'
 import { StudioEnvironment } from '../environment.tsx'
 
-const FLOOR_WIDTH_M = 16
-const FLOOR_DEPTH_M = 7
-const rulerMarks = Array.from({ length: 23 }, (_, index) => index / 10)
-const rulerLabels = [0, 50, 100, 150, 200]
+/** Ten 10-foot people with their arms out need about 20 m of lineup. */
+const FLOOR_WIDTH_M = 24
+const FLOOR_DEPTH_M = 9
+/** The post reaches past the 304.8 cm (10 ft) height limit. */
+const RULER_M = 3.2
+const rulerMarks = Array.from({ length: Math.round(RULER_M * 10) + 1 }, (_, index) => index / 10)
+const rulerLabels = [0, 50, 100, 150, 200, 250, 300]
 
 export function HeightStudio({ children }: { children: ReactNode }) {
   return (
     <>
       <color attach="background" args={['#b8b9b5']} />
-      <fog attach="fog" args={['#b8b9b5', 16, 40]} />
+      <fog attach="fog" args={['#b8b9b5', 22, 60]} />
       <StudioEnvironment intensity={0.85} />
       <hemisphereLight args={['#f4f6f2', '#7a756c', 0.5]} />
       <directionalLight position={[4, 7, 5]} intensity={2.2} color="#fff4e4" />
@@ -30,14 +33,14 @@ export function HeightStudio({ children }: { children: ReactNode }) {
         sectionSize={1}
         sectionThickness={1.15}
         sectionColor="#6f726b"
-        fadeDistance={18}
+        fadeDistance={28}
         fadeStrength={1.4}
         infiniteGrid={false}
       />
-      {/* A free-standing 220 cm post keeps a scale reference on an open floor. */}
-      <group position={[-FLOOR_WIDTH_M / 2 + 1.15, 0, -2.2]}>
-        <mesh position={[0, 1.1, 0.012]}>
-          <boxGeometry args={[0.018, 2.2, 0.012]} />
+      {/* A free-standing 320 cm post keeps a scale reference on an open floor. */}
+      <group position={[-6.85, 0, -2.2]}>
+        <mesh position={[0, RULER_M / 2, 0.012]}>
+          <boxGeometry args={[0.018, RULER_M, 0.012]} />
           <meshBasicMaterial color="#444b48" />
         </mesh>
         {rulerMarks.map((height, index) => {
@@ -60,7 +63,7 @@ export function HeightStudio({ children }: { children: ReactNode }) {
             <span className="ruler-label">{centimeters}</span>
           </Html>
         ))}
-        <Html center position={[-0.2, 2.28, 0.04]} distanceFactor={6} style={{ pointerEvents: 'none' }}>
+        <Html center position={[-0.2, RULER_M + 0.08, 0.04]} distanceFactor={6} style={{ pointerEvents: 'none' }}>
           <span className="ruler-unit">CM</span>
         </Html>
       </group>

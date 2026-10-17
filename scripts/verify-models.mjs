@@ -44,6 +44,12 @@ function openModel(entry) {
 for (const entry of HUMAN_CATALOG) {
   const glb = openModel(entry)
   const skullTopMm = bounds(meshPositions(glb, 'Body')).max[1] * 1000
+  const all = bounds(glb.json.meshes.flatMap((mesh) => meshPositions(glb, mesh.name)))
+  const widthMm = (all.max[0] - all.min[0]) * 1000
+  assert.ok(
+    Math.abs(widthMm - entry.footprintWidthMm) <= 3,
+    `${entry.id}: A-pose width ${widthMm.toFixed(1)} mm vs catalog footprint ${entry.footprintWidthMm} mm`,
+  )
   assert.ok(
     Math.abs(skullTopMm - entry.referenceHeightMm) <= STATURE_TOLERANCE_MM,
     `${entry.id}: Body mesh stature ${skullTopMm.toFixed(1)} mm vs catalog ${entry.referenceHeightMm} mm`,

@@ -15,9 +15,12 @@ export type ParseResult<T> =
   | { ok: false; message: string }
 
 export const HEIGHT_MM_MIN = 900
-export const HEIGHT_MM_MAX = 2300
+/** Ten feet: 120 inches. */
+export const HEIGHT_MM_MAX = 3048
 export const FOOT_LENGTH_MM_MIN = 200
 export const FOOT_LENGTH_MM_MAX = 380
+
+export const HEIGHT_RANGE_MESSAGE = 'Height must be between 90 cm (2′ 11½″) and 304.8 cm (10′ 0″).'
 
 export function heightMm(value: number): HeightMm {
   if (!Number.isFinite(value) || value <= 0) {
@@ -51,7 +54,7 @@ export function parseHeightSpec(spec: HeightSpec): ParseResult<HeightMm> {
 
   const roundedMm = Math.round(rawMm)
   if (roundedMm < HEIGHT_MM_MIN || roundedMm > HEIGHT_MM_MAX) {
-    return { ok: false, message: 'Height must be between 90 and 230 cm.' }
+    return { ok: false, message: HEIGHT_RANGE_MESSAGE }
   }
 
   return { ok: true, value: heightMm(roundedMm) }

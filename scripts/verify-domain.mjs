@@ -3,11 +3,20 @@ import { createCompareApp } from '../src/app/compare-app.ts'
 import { decodeShareQuery, encodeShareQuery, isShareQuery } from '../src/app/share.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
+import { FOOT_CATALOG_SEX } from '../src/domain/catalog.ts'
+import {
+  footDimensionEditRange,
+  resetFootDimension,
+  resizeFoot,
+  setFootDimension,
+  typicalFootShape,
+} from '../src/domain/foot-shape.ts'
 import { HUMAN_NAME_MAX_LENGTH } from '../src/domain/height-world.ts'
 import { mintPlacementId } from '../src/domain/ids.ts'
 import { parseDocumentJson, serializeDocument } from '../src/domain/persist.ts'
 import {
   FOOT_LENGTH_MM_MAX,
+  HEIGHT_MM_MAX,
   footLengthMm,
   footScale,
   heightMm,
@@ -15,16 +24,27 @@ import {
   parseHeightSpec,
 } from '../src/domain/measure.ts'
 import { parseShoeSpec } from '../src/domain/shoe-charts.ts'
+import { humanLineupX } from '../src/scene/draw.ts'
 
 assert.equal(HUMAN_CATALOG.length, 6)
 assert.equal(new Set(HUMAN_CATALOG.map((entry) => entry.id)).size, 6)
 assert.equal(FEET_CATALOG.length, 2)
+for (const entry of FEET_CATALOG) {
+  assert.equal(FOOT_CATALOG_SEX[entry.id], entry.sex, `${entry.id} sex matches the domain map`)
+}
 
 const centimeters = parseHeightSpec({ unit: 'cm', value: 180 })
 const imperial = parseHeightSpec({ unit: 'ftin', feet: 5, inches: 10.866 })
 assert.equal(centimeters.ok && centimeters.value, heightMm(1800))
 assert.equal(imperial.ok && imperial.value, heightMm(1800))
-assert.equal(parseHeightSpec({ unit: 'cm', value: 240 }).ok, false)
+// Heights reach 10 feet (3048 mm) exactly, in either unit, and no further.
+assert.equal(HEIGHT_MM_MAX, 3048)
+const tenFeet = parseHeightSpec({ unit: 'ftin', feet: 10, inches: 0 })
+assert.equal(tenFeet.ok && tenFeet.value, heightMm(3048))
+assert.equal(parseHeightSpec({ unit: 'cm', value: 304.8 }).ok, true)
+assert.equal(parseHeightSpec({ unit: 'cm', value: 240 }).ok, true)
+assert.equal(parseHeightSpec({ unit: 'cm', value: 305 }).ok, false)
+assert.equal(parseHeightSpec({ unit: 'ftin', feet: 10, inches: 0.5 }).ok, false)
 assert.equal(heightScale(heightMm(1800), heightMm(1980)), 1.1)
 assert.equal(footScale(footLengthMm(240), footLengthMm(264)), 1.1)
 
@@ -94,7 +114,7 @@ if (!footResult.ok) {
 assert.deepEqual(app.updateFootSize(footResult.id, { system: 'EU', size: 40 }), {
   ok: true,
 })
-assert.equal(app.getState().feet.placements[0].footLengthMm, footLengthMm(257))
+assert.equal(app.getState().feet.placements[0].shape.lengthMm, footLengthMm(257))
 app.setMode('height')
 assert.equal(app.getState().height.placements.length, 10)
 assert.equal(app.getState().feet.placements.length, 1)
@@ -121,13 +141,113 @@ assert.deepEqual(
   app.getState().height.placements.map((placement) => [placement.catalogId, placement.heightMm, placement.name]),
 )
 assert.deepEqual(
-  shared.feet.placements.map((placement) => [placement.catalogId, placement.footLengthMm]),
-  app.getState().feet.placements.map((placement) => [placement.catalogId, placement.footLengthMm]),
+  shared.feet.placements.map((placement) => [placement.catalogId, placement.shape]),
+  app.getState().feet.placements.map((placement) => [placement.catalogId, placement.shape]),
 )
 assert.equal(shared.height.selected, null)
 const lenient = decodeShareQuery('?mode=feet&h=bogus:1700,female-tan-dress:5:x,female-tan-dress:1700:ok%2Cthen&f=foot-male:999,foot-female:250')
 assert.equal(lenient.mode, 'feet')
 assert.deepEqual(lenient.height.placements.map((placement) => placement.name), ['ok,then'])
-assert.deepEqual(lenient.feet.placements.map((placement) => placement.footLengthMm), [footLengthMm(250)])
+assert.deepEqual(lenient.feet.placements.map((placement) => placement.shape.lengthMm), [footLengthMm(250)])
 
-console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, persistence, and share links.')
+// Foot shape: typical proportions, locks, toe length moving foot length, and constraints.
+const typical = typicalFootShape('male', footLengthMm(270))
+assert.deepEqual(typical.locked, [])
+assert.equal(typical.toeLengthMm, Math.round(270 * 0.2587))
+assert.equal(typical.ballWidthMm, Math.round(270 * 0.3755))
+assert.equal(typical.instepHeightMm, Math.round(270 * 0.25))
+
+const longerToes = setFootDimension(typical, 'male', 'toeLength', typical.toeLengthMm + 12)
+assert.ok(longerToes.ok)
+assert.equal(longerToes.value.lengthMm, 282, 'toe length adds to foot length')
+assert.deepEqual(longerToes.value.locked, ['toeLength'])
+assert.equal(longerToes.value.ballWidthMm, Math.round(282 * 0.3755), 'unlocked width follows the new length')
+
+const wide = setFootDimension(longerToes.value, 'male', 'ballWidth', 120)
+assert.ok(wide.ok)
+assert.equal(wide.value.lengthMm, 282, 'width does not move foot length')
+assert.deepEqual(wide.value.locked, ['toeLength', 'ballWidth'])
+
+const resized = resizeFoot(wide.value, 'male', footLengthMm(300))
+assert.ok(resized.ok)
+assert.equal(resized.value.toeLengthMm, typical.toeLengthMm + 12, 'locked toe keeps its millimeters')
+assert.equal(resized.value.ballWidthMm, 120, 'locked width keeps its millimeters')
+assert.equal(resized.value.instepHeightMm, 75, 'unlocked thickness follows the shoe size')
+
+const resetToes = resetFootDimension(longerToes.value, 'male', 'toeLength')
+assert.ok(resetToes.ok)
+assert.equal(resetToes.value.lengthMm - resetToes.value.toeLengthMm, 270 - typical.toeLengthMm, 'reset keeps heel-to-ball')
+assert.deepEqual(resetToes.value.locked, [])
+
+const tooWide = setFootDimension(typical, 'male', 'ballWidth', 200)
+assert.equal(tooWide.ok, false)
+assert.equal(!tooWide.ok && tooWide.dimension, 'ballWidth')
+const tooLong = setFootDimension(typicalFootShape('male', footLengthMm(375)), 'male', 'toeLength', 120)
+assert.equal(!tooLong.ok && tooLong.dimension, 'length', 'toes cannot push a foot past 380 mm')
+const lockedThenShrunk = resizeFoot(resized.value, 'male', footLengthMm(221))
+assert.equal(!lockedThenShrunk.ok && lockedThenShrunk.dimension, 'toeLength', 'locked toes too long for a small size are reported')
+const onlyWide = resizeFoot({ ...resized.value, locked: ['ballWidth'] }, 'male', footLengthMm(221))
+assert.equal(!onlyWide.ok && onlyWide.dimension, 'ballWidth', 'a locked width too wide for a small size is reported')
+
+const toeRange = footDimensionEditRange(typical, 'toeLength')
+for (const toe of [toeRange.min, toeRange.max]) {
+  assert.ok(setFootDimension(typical, 'male', 'toeLength', toe).ok, `toe length ${toe} at the edge of its range is valid`)
+}
+
+const shapes = createCompareApp()
+shapes.setMode('feet')
+const shaped = shapes.placeFoot('foot-female')
+assert.ok(shaped.ok)
+assert.deepEqual(shapes.setFootDimension(shaped.id, 'toeLength', 70), { ok: true })
+assert.deepEqual(shapes.setFootDimension(shaped.id, 'instepHeight', 66), { ok: true })
+const shapedFoot = shapes.getState().feet.placements[0].shape
+assert.equal(shapedFoot.lengthMm, 242 - Math.round(242 * 0.2609) + 70)
+assert.equal(shapes.setFootDimension(shaped.id, 'ballWidth', 5).reason, 'constraint-violated')
+assert.equal(shapes.getState().feet.placements[0].shape, shapedFoot, 'a rejected edit leaves the shape alone')
+assert.deepEqual(shapes.updateFootSize(shaped.id, { system: 'US', size: 10 }), { ok: true })
+assert.equal(shapes.getState().feet.placements[0].shape.toeLengthMm, 70)
+
+// Saved shapes round-trip; version 1 saves migrate to average feet of the saved length.
+const savedShapes = parseDocumentJson(serializeDocument(shapes.getState()))
+assert.ok(savedShapes.ok)
+assert.deepEqual(savedShapes.value.feet.placements[0].shape, shapes.getState().feet.placements[0].shape)
+const legacy = JSON.parse(serializeDocument(shapes.getState()))
+legacy.version = 1
+legacy.feet.placements = legacy.feet.placements.map(({ shape: _shape, ...rest }) => ({ ...rest, footLengthMm: 251 }))
+const migrated = parseDocumentJson(JSON.stringify(legacy))
+assert.ok(migrated.ok)
+assert.equal(migrated.value.version, 2)
+assert.deepEqual(migrated.value.feet.placements[0].shape, typicalFootShape('female', footLengthMm(251)))
+
+// Share links carry locked dimensions as tags and keep accepting untagged links.
+const shapeQuery = encodeShareQuery(shapes.getState())
+assert.match(shapeQuery, /f=foot-female:\d+:t70:i66(&|$)/)
+const sharedShapes = decodeShareQuery(`?${shapeQuery}`)
+assert.deepEqual(sharedShapes.feet.placements[0].shape, shapes.getState().feet.placements[0].shape)
+const oldLink = decodeShareQuery('?mode=feet&f=foot-male:272')
+assert.deepEqual(oldLink.feet.placements[0].shape, typicalFootShape('male', footLengthMm(272)))
+const junkTags = decodeShareQuery('?mode=feet&f=foot-male:272:x9:t:w999,foot-male:272:w300')
+assert.deepEqual(junkTags.feet.placements.map((placement) => placement.shape.locked), [[]], 'bad tags are ignored and impossible shapes skipped')
+
+// The lineup spaces people by their scaled footprints, so ten 10-foot people never overlap.
+const giants = createCompareApp()
+for (let index = 0; index < 10; index += 1) {
+  const placed = giants.placeHuman(HUMAN_CATALOG[index % HUMAN_CATALOG.length].id)
+  assert.ok(placed.ok)
+  assert.deepEqual(giants.updateHumanHeight(placed.id, { unit: 'ftin', feet: 10, inches: 0 }), { ok: true })
+}
+const giantLineup = humanLineupX(giants.getState().height.placements)
+const spans = giants.getState().height.placements
+  .map((placement) => {
+    const entry = HUMAN_CATALOG.find((candidate) => candidate.id === placement.catalogId)
+    const half = (entry.footprintWidthMm / 2000) * (placement.heightMm / entry.referenceHeightMm)
+    const x = giantLineup.get(placement.id)
+    return [x - half, x + half]
+  })
+  .sort((a, b) => a[0] - b[0])
+for (let index = 1; index < spans.length; index += 1) {
+  assert.ok(spans[index][0] - spans[index - 1][1] >= 0.149, 'neighbors keep their gap at 10 feet')
+}
+assert.equal(giantLineup.get(giants.getState().height.placements[0].id), 0, 'the first person stands at the center')
+
+console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, foot shapes, persistence with migration, and share links.')

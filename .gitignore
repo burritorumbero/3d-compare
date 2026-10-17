@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Downloaded datasets and asset sources
+tools/anthro/.cache
+source-assets

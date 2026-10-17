@@ -110,6 +110,21 @@ try {
   await page.locator('.inspector-panel input[type="number"]').fill('190')
   await page.getByRole('button', { name: 'Update height', exact: true }).click()
   assert.equal(await page.locator('.selection-summary strong').innerText(), '190 cm')
+  // Heights reach 10 feet (304.8 cm) and stop there.
+  await page.locator('.inspector-panel input[type="number"]').fill('304.8')
+  await page.getByRole('button', { name: 'Update height', exact: true }).click()
+  assert.equal(await page.locator('.selection-summary strong').innerText(), '304.8 cm')
+  await page.locator('.inspector-panel input[type="number"]').fill('305')
+  await page.getByRole('button', { name: 'Update height', exact: true }).click()
+  assert.equal(
+    await page.locator('.inspector-panel input[type="number"]').evaluate((input) => input.validity.rangeOverflow),
+    true,
+    'the browser holds back heights over 10 feet',
+  )
+  assert.equal(await page.locator('.selection-summary strong').innerText(), '304.8 cm')
+  await page.locator('.inspector-panel input[type="number"]').fill('190')
+  await page.getByRole('button', { name: 'Update height', exact: true }).click()
+  assert.equal(await page.locator('.selection-summary strong').innerText(), '190 cm')
 
   // Custom names flow to the inspector, the lineup, and the on-stage label.
   await page.locator('.name-field input').fill('Mom')
@@ -171,6 +186,21 @@ try {
   assert.equal(await page.locator('.selection-summary strong').innerText(), 'US 20')
   await page.locator('.shoe-field select').selectOption('8')
 
+  // Shape: toe length locks, follows into foot length, and resets to the average.
+  assert.equal(await page.locator('.dimension-status').count(), 3)
+  const toeField = page.locator('.dimension-toeLength input[type="number"]')
+  assert.equal(await toeField.inputValue(), '63')
+  await toeField.fill('70')
+  await toeField.press('Enter')
+  assert.match(await page.locator('.selection-summary small').innerText(), /249 mm long/)
+  assert.equal(await page.locator('.dimension-toeLength .dimension-reset').count(), 1)
+  assert.match(await page.locator('.lineup-list li small').first().innerText(), /custom shape/)
+  const widthField = page.locator('.dimension-ballWidth input[type="number"]')
+  await widthField.fill('200')
+  await widthField.press('Enter')
+  assert.match(await page.locator('.foot-dimensions .field-error').innerText(), /Foot width must be between/)
+  assert.equal(await widthField.inputValue(), String(Math.round(249 * 0.3766)), 'a rejected width leaves the shape alone')
+
   await page.locator('.feet-catalog .catalog-card').nth(1).evaluate((button) => button.click())
   assert.equal(await page.locator('.lineup-list li').count(), 2)
   await page.locator('.shoe-field select').selectOption('22')
@@ -196,7 +226,7 @@ try {
   assert.ok(link.startsWith(`${baseUrl}/?`), `Share link should point at the app: ${link}`)
   assert.match(link, /mode=feet/)
   assert.match(link, /h=female-tan-dress:1900:Mom/)
-  assert.match(link, /f=foot-female:242,foot-male:374/)
+  assert.match(link, /f=foot-female:249:t70,foot-male:374/)
 
   // Responsive stage: phone and tablet viewports size the stage to the screen.
   await page.setViewportSize({ width: 390, height: 844 })

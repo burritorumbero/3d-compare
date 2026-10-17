@@ -6,7 +6,7 @@ import type { CompareApp } from '../../app/compare-app.ts'
 import type { HeightWorld } from '../../domain/height-world.ts'
 import type { LengthUnit } from '../../domain/measure.ts'
 import { BlobShadow } from '../blob-shadow.tsx'
-import { toHumanDraw, type HumanDraw } from '../draw.ts'
+import { humanLineupX, toHumanDraw, type HumanDraw } from '../draw.ts'
 import { useModel } from '../models.ts'
 
 type FigureProps = {
@@ -116,11 +116,12 @@ export function HumanFigures({
   world: HeightWorld
   unit: LengthUnit
 }) {
+  const lineup = humanLineupX(world.placements)
   return world.placements.map((placement) => (
     <HumanFigure
       key={placement.id}
       app={app}
-      draw={toHumanDraw(placement, world.selected, unit)}
+      draw={toHumanDraw(placement, world.selected, unit, lineup.get(placement.id) ?? 0)}
     />
   ))
 }

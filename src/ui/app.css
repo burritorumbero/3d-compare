@@ -1488,3 +1488,79 @@
     min-height: 300px;
   }
 }
+
+/* Foot shape: one slider and millimeter field per dimension. */
+.foot-dimensions {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.foot-dimensions legend {
+  float: left;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.dimension-field {
+  display: grid;
+  gap: 5px;
+}
+
+.dimension-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.dimension-status,
+.dimension-reset {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+}
+
+.dimension-reset {
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+
+.dimension-controls {
+  display: grid;
+  grid-template-columns: 1fr 86px;
+  align-items: center;
+  gap: 9px;
+}
+
+.dimension-controls input[type='range'] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.dimension-controls .input-with-suffix input {
+  height: 34px;
+}
+
+.dimension-hint {
+  color: var(--muted);
+  font-size: 0.56rem;
+}
+
+.dimension-hint.is-unusual {
+  color: var(--accent-dark);
+  font-weight: 700;
+}

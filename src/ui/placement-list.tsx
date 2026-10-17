@@ -104,10 +104,11 @@ export function PlacementList({
                           <strong>{entry.label}</strong>
                           <small>
                             {formatShoe(
-                              placement.footLengthMm,
+                              placement.shape.lengthMm,
                               document.shoeSystem,
                               entry.sex,
                             )}
+                            {placement.shape.locked.length > 0 && ' · custom shape'}
                           </small>
                         </span>
                       </button>

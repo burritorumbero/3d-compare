@@ -6,8 +6,9 @@ import { humanDisplayName } from '../catalog/names.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { selectedFoot } from '../domain/feet-world.ts'
 import { HUMAN_NAME_MAX_LENGTH, selectedHuman } from '../domain/height-world.ts'
-import { formatHeight } from '../domain/measure.ts'
+import { HEIGHT_RANGE_MESSAGE, formatHeight } from '../domain/measure.ts'
 import { formatShoe, shoeRows } from '../domain/shoe-charts.ts'
+import { FootDimensions } from './foot-dimensions.tsx'
 import { FootIcon, PersonIcon, TrashIcon } from './icons.tsx'
 import {
   closestShoeSize,
@@ -81,7 +82,7 @@ function HeightInspector({
             inches: Number(inches),
           })
 
-    setError(result.ok ? '' : 'Enter a height between 90 and 230 cm.')
+    setError(result.ok ? '' : HEIGHT_RANGE_MESSAGE)
   }
 
   return (
@@ -141,7 +142,7 @@ function HeightInspector({
               <input
                 type="number"
                 min="90"
-                max="230"
+                max="304.8"
                 step="0.1"
                 inputMode="decimal"
                 value={centimeters}
@@ -158,7 +159,7 @@ function HeightInspector({
                 <input
                   type="number"
                   min="2"
-                  max="7"
+                  max="10"
                   step="1"
                   inputMode="numeric"
                   value={feet}
@@ -211,7 +212,7 @@ function FootInspector({
   const entry = footEntry(placement.catalogId)
   const rows = shoeRows(document.shoeSystem, entry.sex)
   const currentSize = closestShoeSize(
-    placement.footLengthMm,
+    placement.shape.lengthMm,
     document.shoeSystem,
     entry.sex,
   )
@@ -242,9 +243,11 @@ function FootInspector({
         </span>
         <div>
           <strong>
-            {formatShoe(placement.footLengthMm, document.shoeSystem, entry.sex)}
+            {formatShoe(placement.shape.lengthMm, document.shoeSystem, entry.sex)}
           </strong>
-          <small>{placement.footLengthMm} mm foot length</small>
+          <small>
+            {placement.shape.lengthMm} mm long · {placement.shape.ballWidthMm} mm wide
+          </small>
         </div>
       </div>
       <label className="field shoe-field">
@@ -267,8 +270,10 @@ function FootInspector({
         </select>
       </label>
       {error && <p className="field-error">{error}</p>}
+      <FootDimensions app={app} placement={placement} sex={entry.sex} />
       <p className="measurement-note">
-        Size charts map to foot length. Brand fit and shoe shape vary.
+        Size charts map to foot length. Averages come from the ANSUR II adult survey.
+        Brand fit and shoe shape vary.
       </p>
     </section>
   )

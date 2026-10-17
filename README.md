@@ -30,13 +30,15 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 
 ### Height
 
-Add up to 10 textured human models to an open concrete floor. Choose among three female and three male people with different skin tones and outfits. Set each height in feet and inches or centimeters, and give each person a name of your own. Everyone stands on one line so perspective does not bias the comparison.
+Add up to 10 textured human models to an open concrete floor. Choose among three female and three male people with different skin tones and outfits. Set each height from 90 cm to 10 ft (304.8 cm) in feet and inches or centimeters, and give each person a name of your own. The lineup spaces people by their size, so very tall people never overlap. Everyone stands on one line so perspective does not bias the comparison.
 
 Drag to orbit, scroll to zoom, and right-drag to pan.
 
 ### Feet
 
-Place pairs of female and male feet, cut at mid-shin, on a centimeter table. Choose an adult US or EU shoe size: US women's 4 to 20, US men's 4 to 22, or EU 34 to 58. 3D Compare maps the size to foot length before scaling the pair.
+Place pairs of female and male feet, cut at mid-shin, on a centimeter table. Choose an adult US or EU shoe size: US women's 4 to 20, US men's 4 to 22, or EU 34 to 58. 3D Compare maps the size to foot length.
+
+Each pair also has three shape dimensions in millimeters: **toe length**, **foot width** (across the ball of the foot), and **foot thickness** (instep height at mid-foot). Until you set one, it follows the adult average for the foot length, from the ANSUR II survey. Setting one locks it, so it keeps its value when the shoe size changes; **Reset** returns it to the average. Toe length is part of foot length, so longer toes make a longer foot and a larger shoe size. Values outside the 1st to 99th percentile of adults are flagged.
 
 Use **Orbit** to rotate around the table. Use **Inspect** for table-plane panning and close zoom.
 
@@ -46,13 +48,13 @@ Tap or click a model to show its info block; only the selected model shows one. 
 
 ### Share links
 
-A share link carries the scene in its query string, for example `?mode=height&unit=cm&shoe=US&h=female-tan-dress:1700:Ari&f=foot-male:272`. Opening one replaces the saved workspace with the shared lineup and then clears the query from the address bar.
+A share link carries the scene in its query string, for example `?mode=height&unit=cm&shoe=US&h=female-tan-dress:1700:Ari&f=foot-male:281:t81:w110`. Feet list their foot length and then each locked dimension in millimeters (`t` toe length, `w` foot width, `i` foot thickness). Opening one replaces the saved workspace with the shared lineup and then clears the query from the address bar.
 
 ## 3D models
 
 The eight models in `public/models` are CC0 glTF binaries adapted from MakeHuman Community assets. `public/models/ASSET_LICENSES.md` records the provenance and `public/models/manifest.json` describes each file. They are static meshes in meters, Y up, facing +Z, with embedded textures, and they total about 34 MB on disk.
 
-Scale is exact by construction. Each human is scaled uniformly from the stature of its authored mesh, measured from sole to skull top with hair excluded, and each pair of feet from the heel-to-toe length of its sole. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
+Scale is exact by construction. Each human is scaled uniformly from the stature of its authored mesh, measured from sole to skull top with hair excluded. Each pair of feet is scaled by the heel-to-toe length of its sole, and width and thickness then stretch their axis by how far they sit from average. Rigged, parametric replacements for these models are planned in `.design/PARAMETRIC_PLAN.md`. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
 
 Models load on demand and are cached per file, so ten copies of one person download it once. Each human decodes to roughly 40 MB of GPU textures, so a full lineup of all six people uses about 240 MB of graphics memory.
 

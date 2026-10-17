@@ -1,7 +1,8 @@
 import { footEntry } from '../catalog/feet.ts'
 import { FOOT_CATALOG_IDS, HUMAN_CATALOG_IDS } from '../domain/catalog.ts'
 import { emptyDocument, type CompareDocument, type Mode } from '../domain/document.ts'
-import { placeFoot, updateFootLength } from '../domain/feet-world.ts'
+import { placeFoot } from '../domain/feet-world.ts'
+import { FOOT_DIMENSIONS, footDimensionMm, resizeFoot, type FootDimension } from '../domain/foot-shape.ts'
 import { placeHuman } from '../domain/height-world.ts'
 import { mintPlacementId } from '../domain/ids.ts'
 import {
@@ -20,10 +21,13 @@ import type { ShoeSystem } from '../domain/shoe-charts.ts'
  *
  *   ?mode=height&unit=cm&shoe=US
  *     &h=female-tan-dress:1700:Ari,male-pale-trousers-shirt:1850:Dad
- *     &f=foot-female:242,foot-male:272
+ *     &f=foot-female:242,foot-male:281:t81:w110
  *
  * Placements list catalog id, size in millimeters, and (for people) a custom
- * name. Poses are recomputed from order, so links stay short.
+ * name. Feet add each locked dimension in millimeters with a one-letter tag
+ * (t toe length, w foot width, i foot thickness); unlocked ones follow foot
+ * length, so links stay short and older links without tags still open. Poses are
+ * recomputed from order.
  */
 export const SHARE_KEYS = ['mode', 'unit', 'shoe', 'h', 'f'] as const
 
@@ -38,13 +42,39 @@ export function encodeShareQuery(document: CompareDocument): string {
     parts.push(`h=${people.join(',')}`)
   }
   if (document.feet.placements.length > 0) {
-    const feet = document.feet.placements.map(
-      (placement) => `${placement.catalogId}:${placement.footLengthMm}`,
+    const feet = document.feet.placements.map((placement) =>
+      [
+        placement.catalogId,
+        placement.shape.lengthMm,
+        ...placement.shape.locked.map(
+          (dimension) => `${DIMENSION_TAGS[dimension]}${footDimensionMm(placement.shape, dimension)}`,
+        ),
+      ].join(':'),
     )
     parts.push(`f=${feet.join(',')}`)
   }
 
   return parts.join('&')
+}
+
+const DIMENSION_TAGS: Record<FootDimension, string> = {
+  toeLength: 't',
+  ballWidth: 'w',
+  instepHeight: 'i',
+}
+
+/** Reads `t81`-style tags into locked dimensions. Unknown or malformed tags are ignored. */
+function lockedDimensions(tags: readonly string[]): Partial<Record<FootDimension, number>> {
+  const values: Partial<Record<FootDimension, number>> = {}
+  for (const tag of tags) {
+    const dimension = FOOT_DIMENSIONS.find((candidate) => DIMENSION_TAGS[candidate] === tag[0])
+    const value = integerInRange(tag.slice(1), 1, FOOT_LENGTH_MM_MAX)
+    if (dimension && value !== null) {
+      values[dimension] = value
+    }
+  }
+
+  return values
 }
 
 export function shareUrl(document: CompareDocument, base: string): string {
@@ -115,22 +145,39 @@ export function decodeShareQuery(query: string): CompareDocument | null {
   }
 
   for (const token of (params.get('f') ?? '').split(',')) {
-    const [rawId, rawMm] = token.split(':')
+    const [rawId, rawMm, ...tags] = token.split(':')
     const catalogId = FOOT_CATALOG_IDS.find((id) => id === rawId)
     const mm = integerInRange(rawMm, FOOT_LENGTH_MM_MIN, FOOT_LENGTH_MM_MAX)
     if (!catalogId || mm === null) {
       continue
     }
 
-    const placed = placeFoot(feet, mintPlacementId(), catalogId, footEntry(catalogId).defaultFootLengthMm)
+    const locks = lockedDimensions(tags)
+    const locked = FOOT_DIMENSIONS.filter((dimension) => locks[dimension] !== undefined)
+    const shaped = resizeFoot(
+      {
+        lengthMm: footLengthMm(mm),
+        toeLengthMm: locks.toeLength ?? 0,
+        ballWidthMm: locks.ballWidth ?? 0,
+        instepHeightMm: locks.instepHeight ?? 0,
+        locked,
+      },
+      footEntry(catalogId).sex,
+      footLengthMm(mm),
+    )
+    if (!shaped.ok) {
+      continue
+    }
+
+    const placed = placeFoot(feet, mintPlacementId(), catalogId, shaped.value)
     if (!placed.result.ok) {
       break
     }
-    feet = updateFootLength(placed.world, placed.result.id, footLengthMm(mm)).world
+    feet = placed.world
   }
 
   return {
-    version: 1,
+    version: 2,
     mode,
     heightUnit,
     shoeSystem,
