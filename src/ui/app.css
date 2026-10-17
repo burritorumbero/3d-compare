@@ -569,17 +569,6 @@ button {
   border-color: var(--accent);
   background: var(--accent);
 }
-.ruler-label,
-.ruler-unit,
-.table-ruler-label {
-  font-size: 10px;
-  color: #c6d2d7;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.table-ruler-label {
-  font-size: 8px;
-}
 .inspector-panel {
   min-height: 100%;
 }

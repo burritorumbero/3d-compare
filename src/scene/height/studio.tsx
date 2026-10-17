@@ -1,6 +1,7 @@
-import { Grid, Html } from '@react-three/drei'
+import { Grid } from '@react-three/drei'
 import type { ReactNode } from 'react'
 import { StudioEnvironment } from '../environment.tsx'
+import { RulerLabel } from '../ruler-label.tsx'
 
 /** Ten 10-foot people with their arms out need about 20 m of lineup. */
 const FLOOR_WIDTH_M = 24
@@ -53,19 +54,14 @@ export function HeightStudio({ children }: { children: ReactNode }) {
           )
         })}
         {rulerLabels.map((centimeters) => (
-          <Html
+          <RulerLabel
             key={centimeters}
-            center
             position={[-0.2, centimeters / 100, 0.04]}
-            distanceFactor={6}
-            style={{ pointerEvents: 'none' }}
-          >
-            <span className="ruler-label">{centimeters}</span>
-          </Html>
+            height={0.1}
+            text={String(centimeters)}
+          />
         ))}
-        <Html center position={[-0.2, RULER_M + 0.08, 0.04]} distanceFactor={6} style={{ pointerEvents: 'none' }}>
-          <span className="ruler-unit">CM</span>
-        </Html>
+        <RulerLabel position={[-0.2, RULER_M + 0.08, 0.04]} height={0.1} text="CM" />
       </group>
 
       {children}

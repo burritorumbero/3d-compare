@@ -1,7 +1,8 @@
-import { Grid, Html } from '@react-three/drei'
+import { Grid } from '@react-three/drei'
 import type { ReactNode } from 'react'
 import { FOOT_ROW_OFFSET_M } from '../../domain/layout.ts'
 import { StudioEnvironment } from '../environment.tsx'
+import { RulerLabel } from '../ruler-label.tsx'
 
 const TABLE_WIDTH_M = 3.2
 const TABLE_DEPTH_M = 1.4
@@ -56,16 +57,12 @@ export function FeetTable({ children }: { children: ReactNode }) {
       </group>
 
       {rulerLabels.map((centimeters) => (
-        <Html
+        <RulerLabel
           key={centimeters}
-          center
           position={[centimeters / 100, 0.025, -TABLE_DEPTH_M / 2 + 0.065]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          distanceFactor={1.8}
-          style={{ pointerEvents: 'none' }}
-        >
-          <span className="table-ruler-label">{centimeters === 0 ? '0 CM' : Math.abs(centimeters)}</span>
-        </Html>
+          height={0.035}
+          text={centimeters === 0 ? '0 CM' : String(Math.abs(centimeters))}
+        />
       ))}
 
       {children}

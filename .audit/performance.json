@@ -83,14 +83,14 @@
   ],
   "assets": [
     {
-      "file": "index-BDXEIOoZ.css",
-      "bytes": 28831,
-      "gzipBytes": 6912
+      "file": "index-CaJfikAD.css",
+      "bytes": 28672,
+      "gzipBytes": 6880
     },
     {
-      "file": "index-BdAo3j90.js",
-      "bytes": 336139,
-      "gzipBytes": 101883
+      "file": "index-U8J4Z_1d.js",
+      "bytes": 336419,
+      "gzipBytes": 102061
     },
     {
       "file": "kernel_bg-C2gzpbkm.wasm",
@@ -114,8 +114,8 @@
     }
   ],
   "totals": {
-    "javascriptBytes": 1253242,
-    "javascriptGzipBytes": 345410,
+    "javascriptBytes": 1253522,
+    "javascriptGzipBytes": 345588,
     "allModelBytes": 29748144,
     "allPreviewBytes": 79256,
     "allTextureBytes": 768722916,

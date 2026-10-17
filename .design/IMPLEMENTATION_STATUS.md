@@ -149,3 +149,9 @@ Visual review captures:
 - [170.5 cm and 10 ft people in the dark workspace](renders/dark-workspace.png)
 - [Rendered model library](renders/dark-model-library.png)
 - [Mobile foot measurements](renders/dark-mobile-feet.png)
+
+### Ruler occlusion correction
+
+Ruler numbers previously used HTML overlays, so centimeter labels behind the feet were painted over the skin. Both rulers now use shared canvas-textured sprites in the scene depth buffer. Opaque models hide the appropriate text pixels, and the labels do not intercept selection clicks. The selected-model info badge remains a separate screen overlay.
+
+[US 20 feet correctly occluding the ruler](renders/ruler-depth-feet.png). The six production rendering checks, lint, build and budgets pass after this correction.
