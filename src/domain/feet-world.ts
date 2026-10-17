@@ -1,7 +1,7 @@
 import type { FootCatalogId } from './catalog.ts'
 import type { PlacementId } from './ids.ts'
 import { nextFootPose, type PlanarDelta, type SurfacePose } from './layout.ts'
-import type { FootLengthMm } from './measure.ts'
+import type { FootShape } from './foot-shape.ts'
 import type {
   FeetCameraIntent,
   FeetNavMode,
@@ -15,7 +15,7 @@ export type PlacedFoot = {
   kind: 'foot'
   id: PlacementId
   catalogId: FootCatalogId
-  footLengthMm: FootLengthMm
+  shape: FootShape
   pose: SurfacePose
 }
 
@@ -47,7 +47,7 @@ export function placeFoot(
   world: FeetWorld,
   id: PlacementId,
   catalogId: FootCatalogId,
-  initialFootLength: FootLengthMm,
+  initialShape: FootShape,
 ): { world: FeetWorld; result: PlaceResult } {
   if (world.placements.length >= FEET_CAP) {
     return { world, result: { ok: false, reason: 'cap-reached' } }
@@ -57,7 +57,7 @@ export function placeFoot(
     kind: 'foot',
     id,
     catalogId,
-    footLengthMm: initialFootLength,
+    shape: initialShape,
     pose: nextFootPose(world.placements.length),
   }
 
@@ -72,10 +72,10 @@ export function placeFoot(
   }
 }
 
-export function updateFootLength(
+export function updateFootShape(
   world: FeetWorld,
   id: PlacementId,
-  value: FootLengthMm,
+  shape: FootShape,
 ): { world: FeetWorld; result: UpdateResult } {
   if (!world.placements.some((placement) => placement.id === id)) {
     return { world, result: { ok: false, reason: 'not-found' } }
@@ -85,7 +85,7 @@ export function updateFootLength(
     world: {
       ...world,
       placements: world.placements.map((placement) =>
-        placement.id === id ? { ...placement, footLengthMm: value } : placement,
+        placement.id === id ? { ...placement, shape } : placement,
       ),
     },
     result: { ok: true },

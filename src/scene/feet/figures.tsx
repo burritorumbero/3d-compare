@@ -49,10 +49,10 @@ function narrowStance(pair: THREE.Group, fallback: THREE.Box3): THREE.Box3 {
 }
 
 /** Stands in at the target size while the textured pair downloads. */
-function LoadingSilhouette({ scale }: { scale: number }) {
+function LoadingSilhouette({ scale: [x, y, z] }: { scale: FootDraw['scale'] }) {
   return (
-    <mesh position={[0, 0.16 * scale, 0.09 * scale]}>
-      <boxGeometry args={[0.3 * scale, 0.32 * scale, 0.26 * scale]} />
+    <mesh position={[0, 0.16 * y, 0.09 * z]}>
+      <boxGeometry args={[0.3 * x, 0.32 * y, 0.26 * z]} />
       <meshStandardMaterial color="#8f7a66" roughness={1} transparent opacity={0.4} />
     </mesh>
   )
@@ -64,8 +64,9 @@ function FootModel({ app, draw }: FigureProps) {
   const [hovered, setHovered] = useState(false)
   const ring = useRef<THREE.Mesh>(null)
   const ringMaterial = useRef<THREE.MeshBasicMaterial>(null)
-  const size = pairBounds.getSize(new THREE.Vector3()).multiplyScalar(draw.scale)
-  const center = pairBounds.getCenter(new THREE.Vector3()).multiplyScalar(draw.scale)
+  const scale = new THREE.Vector3(...draw.scale)
+  const size = pairBounds.getSize(new THREE.Vector3()).multiply(scale)
+  const center = pairBounds.getCenter(new THREE.Vector3()).multiply(scale)
   const ringX = size.x / 2 + 0.04
   const ringZ = size.z / 2 + 0.04
 
@@ -87,7 +88,7 @@ function FootModel({ app, draw }: FigureProps) {
 
   return (
     <>
-      <primitive object={object} scale={draw.scale} />
+      <primitive object={object} scale={[...draw.scale]} />
       <BlobShadow radiusX={size.x / 2 + 0.03} radiusZ={size.z / 2 + 0.03} position={[center.x, 0, center.z]} />
       {/* Invisible hit box: pointer events raycast this box instead of the textured feet. */}
       <mesh

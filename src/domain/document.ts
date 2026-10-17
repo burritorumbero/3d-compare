@@ -6,7 +6,7 @@ import type { ShoeSystem } from './shoe-charts.ts'
 export type Mode = 'height' | 'feet'
 
 export type CompareDocument = {
-  version: 1
+  version: 2
   mode: Mode
   heightUnit: LengthUnit
   shoeSystem: ShoeSystem
@@ -16,7 +16,7 @@ export type CompareDocument = {
 
 export function emptyDocument(): CompareDocument {
   return {
-    version: 1,
+    version: 2,
     mode: 'height',
     heightUnit: 'ftin',
     shoeSystem: 'US',

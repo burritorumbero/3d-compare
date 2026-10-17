@@ -16,6 +16,12 @@ export type HumanCatalogId = (typeof HUMAN_CATALOG_IDS)[number]
 export const FOOT_CATALOG_IDS = ['foot-female', 'foot-male'] as const
 export type FootCatalogId = (typeof FOOT_CATALOG_IDS)[number]
 
+/** Shape defaults and shoe charts depend on sex, so the domain knows it for each foot model. */
+export const FOOT_CATALOG_SEX: Record<FootCatalogId, Sex> = {
+  'foot-female': 'female',
+  'foot-male': 'male',
+}
+
 /**
  * A glTF binary shipped in public/models. Every asset is a static mesh in
  * meters, Y up, facing +Z, with its soles resting on y = 0.
@@ -47,6 +53,8 @@ export type HumanCatalogEntry = {
   swatch: Swatch
   /** Stature of the authored mesh from sole to skull top, hair excluded. */
   referenceHeightMm: HeightMm
+  /** Fingertip-to-fingertip width of the authored A-pose. */
+  footprintWidthMm: number
   alignment: FigureAlignment
 }
 

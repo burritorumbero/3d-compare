@@ -10,8 +10,16 @@ import {
   selectFoot,
   setFeetCameraIntent,
   setFeetNavMode as changeFeetNavMode,
-  updateFootLength,
+  updateFootShape,
 } from '../domain/feet-world.ts'
+import {
+  resetFootDimension as resetDimension,
+  resizeFoot,
+  setFootDimension as setDimension,
+  typicalFootShape,
+  type FootDimension,
+  type FootShapeResult,
+} from '../domain/foot-shape.ts'
 import {
   placeHuman as addHuman,
   removeHuman,
@@ -37,7 +45,7 @@ import type {
   HeightNavSnapshot,
 } from '../domain/navigation.ts'
 import { parseDocumentJson, serializeDocument } from '../domain/persist.ts'
-import type { PlaceResult, UpdateResult } from '../domain/results.ts'
+import type { FootUpdateResult, PlaceResult, UpdateResult } from '../domain/results.ts'
 import {
   parseShoeSpec,
   type ShoeSpec,
@@ -60,7 +68,11 @@ export type CompareApp = {
   placeFoot(catalogId: FootCatalogId): PlaceResult
   updateHumanHeight(id: PlacementId, spec: HeightSpec): UpdateResult
   renameHuman(id: PlacementId, name: string): UpdateResult
-  updateFootSize(id: PlacementId, spec: ShoeSpec): UpdateResult
+  updateFootSize(id: PlacementId, spec: ShoeSpec): FootUpdateResult
+  /** Sets toe length, foot width, or foot thickness in millimeters and locks it. */
+  setFootDimension(id: PlacementId, dimension: FootDimension, valueMm: number): FootUpdateResult
+  /** Unlocks a dimension so it follows foot length again. */
+  resetFootDimension(id: PlacementId, dimension: FootDimension): FootUpdateResult
   select(id: PlacementId | null): void
   remove(id: PlacementId): void
   reposition(id: PlacementId, delta: PlanarDelta): UpdateResult
@@ -125,6 +137,18 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
     listeners.forEach((listener) => listener())
   }
 
+  function reshapeFoot(id: PlacementId, shaped: FootShapeResult): FootUpdateResult {
+    if (!shaped.ok) {
+      return shaped
+    }
+
+    const change = updateFootShape(state.feet, id, shaped.value)
+    if (change.world !== state.feet) {
+      publish({ ...state, feet: change.world })
+    }
+    return change.result
+  }
+
   const app: CompareApp = {
     getState: () => state,
     subscribe(listener) {
@@ -183,7 +207,7 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
         state.feet,
         mintPlacementId(),
         catalogId,
-        entry.defaultFootLengthMm,
+        typicalFootShape(entry.sex, entry.defaultFootLengthMm),
       )
       if (change.world !== state.feet) {
         publish({ ...state, feet: change.world })
@@ -215,16 +239,31 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
         return { ok: false, reason: 'not-found' }
       }
 
-      const parsed = parseShoeSpec(spec, footEntry(placement.catalogId).sex)
+      const sex = footEntry(placement.catalogId).sex
+      const parsed = parseShoeSpec(spec, sex)
       if (!parsed.ok) {
         return { ok: false, reason: 'out-of-range' }
       }
 
-      const change = updateFootLength(state.feet, id, parsed.value)
-      if (change.world !== state.feet) {
-        publish({ ...state, feet: change.world })
+      return reshapeFoot(id, resizeFoot(placement.shape, sex, parsed.value))
+    },
+    setFootDimension(id, dimension, valueMm) {
+      const placement = state.feet.placements.find((candidate) => candidate.id === id)
+      if (!placement) {
+        return { ok: false, reason: 'not-found' }
       }
-      return change.result
+
+      const sex = footEntry(placement.catalogId).sex
+      return reshapeFoot(id, setDimension(placement.shape, sex, dimension, valueMm))
+    },
+    resetFootDimension(id, dimension) {
+      const placement = state.feet.placements.find((candidate) => candidate.id === id)
+      if (!placement) {
+        return { ok: false, reason: 'not-found' }
+      }
+
+      const sex = footEntry(placement.catalogId).sex
+      return reshapeFoot(id, resetDimension(placement.shape, sex, dimension))
     },
     select(id) {
       if (state.mode === 'height') {

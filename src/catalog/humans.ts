@@ -25,6 +25,7 @@ export const HUMAN_CATALOG: readonly HumanCatalogEntry[] = [
     model: { file: 'female-tan-dress.glb', triangles: 83072 },
     swatch: { skinHex: SKIN_SWATCH.tan, outfitHex: '#607a65' },
     referenceHeightMm: heightMm(1670),
+    footprintWidthMm: 1020,
     alignment: ALIGNMENT,
   },
   {
@@ -36,6 +37,7 @@ export const HUMAN_CATALOG: readonly HumanCatalogEntry[] = [
     model: { file: 'female-dark-jeans-tshirt.glb', triangles: 75912 },
     swatch: { skinHex: SKIN_SWATCH.dark, outfitHex: '#c28e65' },
     referenceHeightMm: heightMm(1700),
+    footprintWidthMm: 1037,
     alignment: ALIGNMENT,
   },
   {
@@ -47,6 +49,7 @@ export const HUMAN_CATALOG: readonly HumanCatalogEntry[] = [
     model: { file: 'female-pale-shorts-croptop.glb', triangles: 82193 },
     swatch: { skinHex: SKIN_SWATCH.pale, outfitHex: '#5f7ea3' },
     referenceHeightMm: heightMm(1640),
+    footprintWidthMm: 1001,
     alignment: ALIGNMENT,
   },
   {
@@ -58,6 +61,7 @@ export const HUMAN_CATALOG: readonly HumanCatalogEntry[] = [
     model: { file: 'male-tan-shorts-tshirt.glb', triangles: 72110 },
     swatch: { skinHex: SKIN_SWATCH.tan, outfitHex: '#567b73' },
     referenceHeightMm: heightMm(1790),
+    footprintWidthMm: 1166,
     alignment: ALIGNMENT,
   },
   {
@@ -69,6 +73,7 @@ export const HUMAN_CATALOG: readonly HumanCatalogEntry[] = [
     model: { file: 'male-dark-jeans-sleeveless.glb', triangles: 77398 },
     swatch: { skinHex: SKIN_SWATCH.dark, outfitHex: '#474747' },
     referenceHeightMm: heightMm(1840),
+    footprintWidthMm: 1211,
     alignment: ALIGNMENT,
   },
   {
@@ -80,6 +85,7 @@ export const HUMAN_CATALOG: readonly HumanCatalogEntry[] = [
     model: { file: 'male-pale-trousers-shirt.glb', triangles: 77904 },
     swatch: { skinHex: SKIN_SWATCH.pale, outfitHex: '#7f97ad' },
     referenceHeightMm: heightMm(1810),
+    footprintWidthMm: 1177,
     alignment: ALIGNMENT,
   },
 ]

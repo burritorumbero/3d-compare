@@ -1,11 +1,18 @@
 import {
   FOOT_CATALOG_IDS,
+  FOOT_CATALOG_SEX,
   HUMAN_CATALOG_IDS,
   type FootCatalogId,
   type HumanCatalogId,
 } from './catalog.ts'
 import type { CompareDocument, Mode } from './document.ts'
 import { FEET_CAP, type FeetWorld, type PlacedFoot } from './feet-world.ts'
+import {
+  FOOT_DIMENSIONS,
+  resizeFoot,
+  typicalFootShape,
+  type FootShape,
+} from './foot-shape.ts'
 import {
   HEIGHT_CAP,
   sanitizeHumanName,
@@ -104,15 +111,40 @@ function humanPlacement(value: unknown): PlacedHuman | null {
   }
 }
 
-function footPlacement(value: unknown): PlacedFoot | null {
+function isFootLength(value: unknown): value is number {
+  return isFiniteNumber(value) && value >= FOOT_LENGTH_MM_MIN && value <= FOOT_LENGTH_MM_MAX
+}
+
+/**
+ * Reads a saved shape. Locked dimensions keep their saved millimeters; unlocked
+ * ones are re-derived, so a change to the adult averages reaches old saves.
+ */
+function footShape(value: unknown, catalogId: FootCatalogId): FootShape | null {
   if (
     !isRecord(value) ||
-    value.kind !== 'foot' ||
-    typeof value.id !== 'string' ||
-    !isFiniteNumber(value.footLengthMm) ||
-    value.footLengthMm < FOOT_LENGTH_MM_MIN ||
-    value.footLengthMm > FOOT_LENGTH_MM_MAX
+    !isFootLength(value.lengthMm) ||
+    !isFiniteNumber(value.toeLengthMm) ||
+    !isFiniteNumber(value.ballWidthMm) ||
+    !isFiniteNumber(value.instepHeightMm) ||
+    !Array.isArray(value.locked)
   ) {
+    return null
+  }
+
+  const sex = FOOT_CATALOG_SEX[catalogId]
+  const saved: FootShape = {
+    lengthMm: footLengthMm(value.lengthMm),
+    toeLengthMm: Math.round(value.toeLengthMm),
+    ballWidthMm: Math.round(value.ballWidthMm),
+    instepHeightMm: Math.round(value.instepHeightMm),
+    locked: FOOT_DIMENSIONS.filter((dimension) => (value.locked as unknown[]).includes(dimension)),
+  }
+  const checked = resizeFoot(saved, sex, saved.lengthMm)
+  return checked.ok ? checked.value : null
+}
+
+function footPlacement(value: unknown, version: 1 | 2): PlacedFoot | null {
+  if (!isRecord(value) || value.kind !== 'foot' || typeof value.id !== 'string') {
     return null
   }
 
@@ -122,11 +154,22 @@ function footPlacement(value: unknown): PlacedFoot | null {
     return null
   }
 
+  // Version 1 stored only foot length: migrate it to an average foot of that length.
+  const shape =
+    version === 1
+      ? isFootLength(value.footLengthMm)
+        ? typicalFootShape(FOOT_CATALOG_SEX[catalogId], footLengthMm(value.footLengthMm))
+        : null
+      : footShape(value.shape, catalogId)
+  if (!shape) {
+    return null
+  }
+
   return {
     kind: 'foot',
     id: placementId(value.id),
     catalogId,
-    footLengthMm: footLengthMm(value.footLengthMm),
+    shape,
     pose,
   }
 }
@@ -163,7 +206,7 @@ function heightWorld(value: unknown): HeightWorld | null {
   }
 }
 
-function feetWorld(value: unknown): FeetWorld | null {
+function feetWorld(value: unknown, version: 1 | 2): FeetWorld | null {
   if (
     !isRecord(value) ||
     value.kind !== 'feet' ||
@@ -173,7 +216,7 @@ function feetWorld(value: unknown): FeetWorld | null {
     return null
   }
 
-  const placements = value.placements.map(footPlacement)
+  const placements = value.placements.map((placement) => footPlacement(placement, version))
   if (placements.some((placement) => placement === null)) {
     return null
   }
@@ -201,12 +244,12 @@ function feetWorld(value: unknown): FeetWorld | null {
 export function parseDocumentJson(raw: string): ParseResult<CompareDocument> {
   try {
     const value: unknown = JSON.parse(raw)
-    if (!isRecord(value) || value.version !== 1) {
+    if (!isRecord(value) || (value.version !== 1 && value.version !== 2)) {
       return { ok: false, message: 'Saved comparison uses an unsupported version.' }
     }
 
     const height = heightWorld(value.height)
-    const feet = feetWorld(value.feet)
+    const feet = feetWorld(value.feet, value.version)
     if (!height || !feet) {
       return { ok: false, message: 'Saved comparison has invalid placements.' }
     }
@@ -216,7 +259,7 @@ export function parseDocumentJson(raw: string): ParseResult<CompareDocument> {
     const shoeSystem: ShoeSystem = value.shoeSystem === 'EU' ? 'EU' : 'US'
     return {
       ok: true,
-      value: { version: 1, mode, heightUnit, shoeSystem, height, feet },
+      value: { version: 2, mode, heightUnit, shoeSystem, height, feet },
     }
   } catch {
     return { ok: false, message: 'Saved comparison is not valid JSON.' }

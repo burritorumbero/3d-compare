@@ -20,7 +20,7 @@ function selectionView(world: FeetWorld): FeetOrbitSnapshot {
     return defaultView()
   }
 
-  const length = selected.footLengthMm / 1000
+  const length = selected.shape.lengthMm / 1000
   return {
     kind: 'orbit',
     target: [selected.pose.x, length * 0.6, selected.pose.z + length * 0.35],
