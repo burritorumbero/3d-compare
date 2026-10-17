@@ -1,6 +1,6 @@
 # Parametric sizing: assessment and work plan
 
-Status, 2026-10-17: Phase 0 is partly done and Phase 1 is done. See the checkboxes below.
+Status, 2026-10-17: Phases 1 and 2 are done, and Phase 0 is partly done. See the checkboxes below.
 
 ## Goal
 
@@ -104,7 +104,7 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
 
 ### Phase 0: groundwork
 
-- [ ] Install `wasm-bindgen-cli` (pinned to the crate's `wasm-bindgen` version).
+- [x] Install `wasm-bindgen-cli` 0.2.129 (pinned to the crate). `kernel/rust-toolchain.toml` pins Rust 1.99.1, and the machine default stays unchanged.
 - [x] Confirm the Daz → Blender path works headless (Diffeomorphic 5.1, Blender 5.2).
 - [ ] Record G9 product versions and checksums in `source-assets/provenance.json` (local, git-ignored).
 - [x] ANSUR II: `tools/anthro/fit_ansur.py` downloads the CSVs (SHA-256 pinned, cached in the git-ignored `tools/anthro/.cache`) and generates `src/domain/anthropometry.ts`.
@@ -123,12 +123,14 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
 
 ### Phase 2: kernel (`kernel/`, Rust → WASM)
 
-- [ ] Crate API: `load_rig(rig_json, landmark_rest_positions)`, `solve_foot(params) -> {bone_scales, morph_weights, measured, bounds}`, `solve_stature(mm) -> …`, `measure(...)`.
-- [ ] LBS + morph evaluation on landmark vertices, and bounds from a precomputed convex hull or vertex subset.
-- [ ] LM solver with analytic or finite-difference Jacobian. Target: ≤ 0.5 mm error, < 1 ms per solve, deterministic.
-- [ ] `npm run build:kernel` (cargo + wasm-bindgen `--target web`). A thin TS wrapper in `src/kernel/` handles async init, and the scene waits for it the same way it waits for models.
-- [ ] `npm run verify:kernel` in Node: a parameter grid over the full ranges, asserting measured = requested within ±1 mm and no NaN/inverted bounds.
-- [ ] CI: add the Rust toolchain and wasm target to `deploy-pages.yml`, and cache cargo.
+- [x] Crate `parametric-kernel` (`kernel/src/core.rs`, with a wasm-bindgen surface in `lib.rs`). It handles hierarchical axis-aligned bone scales about floor-level heads, plus clamped morph channels. Measures are `extent`, `max` and `between`. The solver is Levenberg–Marquardt with a central-difference Jacobian, a prior pull, bounds, and a warm start. Solver iterations deform only the measured vertices, and bounds come from a hull sample once at the end.
+- [x] Rig file format (`src/kernel/rig.ts`): names for bones, controls, groups and measures, encoded into typed arrays, so the kernel needs no JSON parser. Contract: deform bones have an identity rest rotation and heads at y = 0, which makes `bone.scale` in three.js equal the kernel's math.
+- [x] TS API: `loadKernel`, `RigSolver.solve/evaluate/pose/dispose`, `loadBrowserKernel` (Vite `?url`). Feet: `FOOT_RIG_MEASURES`, `footTargets` and `solveFoot`.
+- [x] `npm run build:kernel`, which also runs before dev, build and `verify:kernel`. Output: 81.6 kB wasm (32 kB gzipped) in the git-ignored `src/kernel/pkg`.
+- [x] `npm run verify:kernel`: 8 Rust unit tests, then 378 solves over the full foot-shape grid on procedural rigs of the shipped feet (`scripts/procedural-foot-rig.mjs`). Results: worst error 0.047 mm, about 0.46 ms per cold solve in Node, warm starts in 3 iterations or fewer, soles stay on the floor, and the shin is untouched. three.js `Bone`/`Skeleton` skinning with the kernel's pose reproduces the measurements within 0.1 mm.
+- [x] `verify:ui` loads the kernel in Chrome through Vite and solves a rig.
+- [x] CI: pinned Rust via rustup, `Swatinem/rust-cache`, prebuilt `wasm-bindgen` via `taiki-e/install-action`, plus `verify:kernel`.
+- Fixture lesson for Phase 3: shin weights must hand over above the malleolus (about 0.30–0.42 × foot length). Otherwise the instep is partly shin-weighted and thin-foot targets become unreachable.
 
 ### Phase 3: feet asset rebuild (Blender pipeline)
 

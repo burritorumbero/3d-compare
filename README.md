@@ -6,6 +6,7 @@
 
 - Node.js 22.12 or newer. The toolchain (Vite 8 on Rolldown, oxlint, and the built-in TypeScript type stripping the verification scripts use) does not run on Node.js 18 or 20.
 - npm 10 or newer.
+- Rust through [rustup](https://rustup.rs) and `wasm-bindgen-cli` 0.2.129 for the parametric kernel. `kernel/rust-toolchain.toml` pins Rust 1.99.1 with the WebAssembly target, and rustup installs it on first use without changing your default toolchain. Install the bindings generator once with `cargo install wasm-bindgen-cli --version 0.2.129 --locked`.
 
 `.nvmrc` pins the major version, so `nvm install 22 && nvm use` selects a supported release. `.npmrc` sets `engine-strict=true`, so `npm install` on an unsupported Node.js stops with an "Unsupported engine" error instead of installing packages that fail later. The `dev`, `build`, `preview`, and `verify:*` scripts run the same check before starting.
 
@@ -58,6 +59,13 @@ Scale is exact by construction. Each human is scaled uniformly from the stature 
 
 Models load on demand and are cached per file, so ten copies of one person download it once. Each human decodes to roughly 40 MB of GPU textures, so a full lineup of all six people uses about 240 MB of graphics memory.
 
+## Parametric kernel
+
+`kernel/` is a Rust crate compiled to WebAssembly (about 82 kB, 32 kB gzipped). It solves the inverse problem behind parametric sizing: given target measurements such as foot length, toe length, width and instep height, it finds the bone scales and morph weights that make the rigged mesh measure exactly that. three.js then applies them on the GPU.
+
+- A rig is described by a `*.rig.json` file. `src/kernel/rig.ts` documents the format.
+- `npm run dev`, `npm run build` and `npm run verify:kernel` rebuild the kernel automatically into the git-ignored `src/kernel/pkg`. Cargo skips the work when nothing has changed.
+
 ## Local data only
 
 The app has no backend, account, Go service, or AWS resource. The static catalogs and models ship with the client. Your two comparison lineups persist in browser `localStorage`, and share links carry a scene between browsers without a server.
@@ -67,9 +75,12 @@ The app has no backend, account, Go service, or AWS resource. The static catalog
 ```bash
 npm run verify:domain
 npm run verify:models
+npm run verify:kernel
 npm run lint
 npm run build
 ```
+
+`verify:kernel` runs the kernel's Rust tests and then solves 378 foot shapes on rigs built from the shipped feet. Each must measure within 0.1 mm of its target, and three.js skinning must reproduce the kernel's measurements.
 
 With the development server running, exercise the complete compare flow in a headless browser:
 
