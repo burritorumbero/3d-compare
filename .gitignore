@@ -26,3 +26,7 @@ dist-ssr
 # Downloaded datasets and asset sources
 tools/anthro/.cache
 source-assets
+
+# Kernel build output
+kernel/target
+src/kernel/pkg

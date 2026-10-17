@@ -80,3 +80,12 @@ This is Phase 1 of `.design/PARAMETRIC_PLAN.md`.
 - **Interim rendering.** Until rigged models land, the scene scales feet per axis relative to the typical shape.
 - **Heights.** Heights reach 3048 mm (10 ft). The lineup is spaced by each person's scaled arm-span footprint. The overview camera fits the lineup width and the tallest person for the stage aspect ratio. The ruler post is 320 cm and the floor is 24 m.
 - **Checks.** verify:domain, verify:models, lint, build and verify:ui pass.
+
+## Follow-up: parametric kernel (2026-10-17)
+
+This is Phase 2 of `.design/PARAMETRIC_PLAN.md`.
+
+- **The crate.** `kernel/` is a Rust crate compiled to WebAssembly. Given target measurements, it solves for rig bone scales and morph weights.
+- **Using it.** Rigs are described by `*.rig.json` (`src/kernel/rig.ts`). `src/kernel/index.ts` loads the kernel and exposes `RigSolver`, and `src/kernel/foot.ts` maps a `FootShape` onto foot rig measures.
+- **Not wired into the app yet.** The scene starts using it when rigged models land in Phases 3 and 4.
+- **Checks.** `npm run verify:kernel` proves 0.1 mm accuracy over the foot-shape grid on procedural rigs of the shipped feet, and checks that three.js skinning matches. verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.

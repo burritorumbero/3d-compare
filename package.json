@@ -7,9 +7,9 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "predev": "node scripts/check-node.mjs",
+    "predev": "node scripts/check-node.mjs && node scripts/build-kernel.mjs",
     "dev": "vite --host 127.0.0.1 --port 43123",
-    "prebuild": "node scripts/check-node.mjs",
+    "prebuild": "node scripts/check-node.mjs && node scripts/build-kernel.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "prepreview": "node scripts/check-node.mjs",
@@ -18,8 +18,11 @@
     "verify:domain": "node --experimental-strip-types scripts/verify-domain.mjs",
     "preverify:models": "node scripts/check-node.mjs",
     "verify:models": "node --experimental-strip-types scripts/verify-models.mjs",
+    "preverify:kernel": "node scripts/check-node.mjs && node scripts/build-kernel.mjs",
+    "verify:kernel": "cd kernel && cargo test --quiet && cd .. && node --experimental-strip-types scripts/verify-kernel.mjs",
     "verify:rendering": "node scripts/verify-rendering.mjs",
-    "verify:ui": "node scripts/verify-ui.mjs"
+    "verify:ui": "node scripts/verify-ui.mjs",
+    "build:kernel": "node scripts/build-kernel.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
