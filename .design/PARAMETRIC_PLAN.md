@@ -1,6 +1,6 @@
 # Parametric sizing: assessment and work plan
 
-Status, 2026-10-17: Phases 1–4 are done, and Phase 0 is partly done. See the checkboxes below.
+Status, 2026-10-17: Phases 1–4 and 5a are done, and Phase 0 is partly done. See the checkboxes below.
 
 ## Goal
 
@@ -178,11 +178,33 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
   - inch display for the shape fields (they stay in mm alongside shoe charts);
   - a frame-rate measurement on real GPU hardware (headless runs use software WebGL).
 
-### Phase 5: humans
+### Phase 5a: stature solver
 
-- [ ] `tools/assets/build_humans.py`: G9 rig (trimmed to deform bones), skinned clothing, hair and eyes, segment bones, KTX2. Map the six G9 characters onto the catalog ids, and rename the catalog where the people change.
-- [ ] Allometric `solve_stature` in the kernel, figure integration, and an updated inspector note ("Proportions follow adult averages for this height").
-- [ ] `verify-models`/`verify-kernel`: the stature grid at 900–2300 mm measures exactly, and head/leg ratios stay inside the ANSUR envelope.
+- [x] **Kernel:** per-bone `inherit_scale`. A non-inheriting bone moves with its parent but keeps only its own scale, so a longer shin lifts the thigh without stretching it. `Pose` returns the world scales and the three.js local scales (own ÷ parent's world). Skinning uses `offset = parent(head) − world·head`. The rig file's `inheritScale` is optional and defaults to true, so the feet rigs are unchanged. The kernel is now 83.0 kB.
+- [x] **Domain** (`src/domain/stature.ts`):
+  - `averageLandmarks(sex, stature)` comes from the ANSUR II power laws: ankle, knee, crotch, shoulder, neck, ear and stature heights, plus biacromial and hip breadth and foot length.
+  - `statureTargets(sex, authored, stature)` scales a model's own landmarks by the population ratio, so individual proportions carry over and stature lands exactly.
+  - Predicted order holds from 0.9 to 3.05 m. At 3.05 m the head above the ear is 5.0% of stature (7.7% at 1.65 m) and the crotch is at 55% (48%).
+- [x] **Tests:**
+  - `verify-domain`: landmark order and monotonic growth at every height in range; head shrinks and legs lengthen relative to stature; individual proportions carry over.
+  - Rust: a non-inheriting column test.
+  - `verify-kernel`: a 9-control body column solved to stature targets at 62 heights from 0.9 to 3.05 m, worst error 0.030 mm, with three.js bones using the kernel's local scales placing every landmark the same.
+
+### Phase 5b: Genesis 9 people
+
+- [ ] `tools/assets/build_humans.py`:
+  - import each character with its body *and* head shape;
+  - add the Genesis 9 eyes, lashes and brows, clothing (fitted with the shape transferred) and hair;
+  - weight with segment groups from Genesis 9 bones (foot, shin, thigh, pelvis, chest, neck, head, arms), using non-inheriting segment bones;
+  - crop textures;
+  - export the GLB, then generate the rig file and landmark groups in Node.
+- [ ] Map the six characters onto the catalog:
+  - Laura (female, tan), Amala (female, dark) and Kat (female, pale/light);
+  - Ty (male, tan/light), Fabrice (male, dark) and Matt (male, pale);
+  - rename the catalog labels to match.
+- [ ] Runtime: generalize `rigged-foot.ts` to rigged figures (N-bone `_DEFORM_WEIGHTS` as skinIndex/skinWeight). Each person solves `statureTargets` for their height. The hit box, label, ring and lineup footprint come from the solved bounds.
+- [ ] Inspector note: "Proportions follow adult averages for this height".
+- [ ] Arms are scaled uniformly with the chest's arm bones (an A-pose diagonal can't take an axis-aligned length scale). Check at 0.9 m and 3.05 m.
 
 ### Phase 6: closeout
 

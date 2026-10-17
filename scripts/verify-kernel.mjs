@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import * as THREE from 'three'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { footDimensionRange } from '../src/domain/foot-shape.ts'
+import { averageLandmarks, statureTargets } from '../src/domain/stature.ts'
 import { assertFootRig, footTargets, solveFoot } from '../src/kernel/foot.ts'
 import { RigSolver, loadKernel } from '../src/kernel/index.ts'
 import { poseFoot, rigFoot } from '../src/scene/feet/rigged-foot.ts'
@@ -157,7 +158,115 @@ for (const entry of FEET_CATALOG) {
   mirror.dispose()
 }
 
+// Body column: segments stacked from the floor, each moving with the one below
+// without inheriting its scale, solved to ANSUR stature targets from 0.9 to
+// 3.05 m. Then three.js bones, given the kernel's local scales, must land every
+// landmark where the kernel put it.
+function bodyColumnRig(sex) {
+  const authored = averageLandmarks(sex, 1700)
+  const m = (value) => value / 1000
+  const segments = [
+    ['foot', 0, 'ankle'],
+    ['shin', authored.ankle, 'knee'],
+    ['thigh', authored.knee, 'crotch'],
+    ['pelvis', authored.crotch, 'shoulder'],
+    ['chest', authored.shoulder, 'neck'],
+    ['neck', authored.neck, 'ear'],
+    ['head', authored.ear, 'stature'],
+  ]
+  const bones = [{ name: 'root', parent: null, head: [0, 0, 0] }]
+  segments.forEach(([name, base], index) =>
+    bones.push({ name, parent: index === 0 ? 'root' : segments[index - 1][0], head: [0, m(base), 0], inheritScale: false }),
+  )
+  const positions = []
+  const skinBones = []
+  const groups = {}
+  const vertex = (bone, point) => {
+    positions.push(...point)
+    skinBones.push(bones.findIndex((candidate) => candidate.name === bone), 0, 0, 0)
+    return positions.length / 3 - 1
+  }
+  for (const [name, , landmark] of segments) {
+    groups[landmark] = [vertex(name, [0, m(authored[landmark]), 0])]
+  }
+  // Breadths: shoulder points on the chest's base, hip points on the pelvis.
+  groups.shoulders = [-1, 1].map((side) => vertex('chest', [(side * m(authored.biacromialBreadth)) / 2, m(authored.shoulder), 0]))
+  groups.hips = [-1, 1].map((side) => vertex('pelvis', [(side * m(authored.hipBreadth)) / 2, m(authored.crotch + 60), 0]))
+  const count = positions.length / 3
+  groups.all = Array.from({ length: count }, (_, index) => index)
+  return {
+    authored,
+    rig: {
+      version: 1,
+      mesh: 'Body',
+      bones,
+      vertices: {
+        source: Array.from({ length: count }, (_, index) => index),
+        positions,
+        skinBones,
+        skinWeights: Array.from({ length: count }, () => [1, 0, 0, 0]).flat(),
+      },
+      morphs: [],
+      controls: [
+        ...segments.map(([name, , landmark]) => ({ name: landmark, min: 0.3, max: 2.5, channels: [{ bone: name, axis: 'y', gain: 1 }] })),
+        { name: 'shoulderWidth', min: 0.3, max: 2.5, channels: [{ bone: 'chest', axis: 'x', gain: 1 }] },
+        { name: 'hipWidth', min: 0.3, max: 2.5, channels: [{ bone: 'pelvis', axis: 'x', gain: 1 }] },
+      ],
+      groups,
+      measures: [
+        ...segments.map(([, , landmark]) => ({ name: landmark, kind: 'max', group: landmark, axis: 'y' })),
+        { name: 'biacromialBreadth', kind: 'extent', group: 'shoulders', axis: 'x' },
+        { name: 'hipBreadth', kind: 'extent', group: 'hips', axis: 'x' },
+      ],
+      hull: 'all',
+    },
+  }
+}
+
+function skinWithBones(rig, pose) {
+  const bones = rig.bones.map(() => new THREE.Bone())
+  rig.bones.forEach((spec, index) => {
+    const parentIndex = rig.bones.findIndex((candidate) => candidate.name === spec.parent)
+    const parentHead = parentIndex === -1 ? [0, 0, 0] : rig.bones[parentIndex].head
+    bones[index].position.set(spec.head[0] - parentHead[0], spec.head[1] - parentHead[1], spec.head[2] - parentHead[2])
+    if (parentIndex !== -1) {
+      bones[parentIndex].add(bones[index])
+    }
+  })
+  bones[0].updateMatrixWorld(true)
+  const skeleton = new THREE.Skeleton(bones)
+  pose.boneScales.forEach((scale, index) => bones[index].scale.set(...scale))
+  bones[0].updateMatrixWorld(true)
+  return Array.from({ length: rig.vertices.positions.length / 3 }, (_, vertex) => {
+    const bone = rig.vertices.skinBones[vertex * 4]
+    const skin = new THREE.Matrix4().multiplyMatrices(bones[bone].matrixWorld, skeleton.boneInverses[bone])
+    return new THREE.Vector3().fromArray(rig.vertices.positions, vertex * 3).applyMatrix4(skin)
+  })
+}
+
+let bodySolves = 0
+let bodyWorst = 0
+for (const sex of ['female', 'male']) {
+  const { authored, rig } = bodyColumnRig(sex)
+  const solver = new RigSolver(rig)
+  for (let stature = 900; stature <= 3048; stature += 71) {
+    const targets = statureTargets(sex, authored, stature)
+    const wanted = Object.fromEntries(solver.measureNames.map((name) => [name, targets[name] / 1000]))
+    const solution = solver.solve(wanted)
+    bodySolves += 1
+    const errorMm = solution.maxError * 1000
+    bodyWorst = Math.max(bodyWorst, errorMm)
+    assert.ok(errorMm <= MAX_ERROR_MM, `${sex} body at ${stature} mm: off by ${errorMm.toFixed(3)} mm`)
+    const three = measureWithThree(rig, skinWithBones(rig, solver.pose(solution.controls)))
+    for (const [name, target] of Object.entries(wanted)) {
+      assert.ok(Math.abs(three[name] - target) < 0.0001, `${sex} body at ${stature} mm: three.js puts ${name} at ${(three[name] * 1000).toFixed(2)} mm, wanted ${(target * 1000).toFixed(2)} mm`)
+    }
+  }
+  solver.dispose()
+}
+
 console.log(
   `Kernel verification passed: shipped rigs match their GLBs, ${solves} foot solves (left and right agree), worst error ${worst.toFixed(4)} mm, ` +
-    `${(elapsed / solves).toFixed(2)} ms per solve, the app's three.js skinning agrees.`,
+    `${(elapsed / solves).toFixed(2)} ms per solve, the app's three.js skinning agrees; ` +
+    `${bodySolves} body-column stature solves (0.9 to 3.05 m), worst error ${bodyWorst.toFixed(4)} mm, three.js bones agree.`,
 )

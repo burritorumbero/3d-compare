@@ -71,7 +71,8 @@ Models load on demand and are cached per file, so ten copies of one person downl
 
 `kernel/` is a Rust crate compiled to WebAssembly (about 82 kB, 32 kB gzipped). It solves the inverse problem behind parametric sizing: given target measurements such as foot length, toe length, width and instep height, it finds the bone scales and morph weights that make the rigged mesh measure exactly that. three.js then applies them on the GPU.
 
-- A rig is described by a `*.rig.json` file. `src/kernel/rig.ts` documents the format.
+- A rig is described by a `*.rig.json` file. `src/kernel/rig.ts` documents the format. Bones either inherit their parent's scale (toes grow with the foot) or only move with it (a longer shin lifts the thigh without stretching it).
+- `src/domain/stature.ts` turns a height into ANSUR II landmark targets (knee, crotch, shoulder, neck, ear, breadths), so taller people get relatively longer legs and smaller heads, as real adults do.
 - `npm run dev`, `npm run build` and `npm run verify:kernel` rebuild the kernel automatically into the git-ignored `src/kernel/pkg`. Cargo skips the work when nothing has changed.
 
 ## Local data only
