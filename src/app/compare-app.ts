@@ -1,5 +1,6 @@
 import { footEntry } from '../catalog/feet.ts'
 import { humanEntry } from '../catalog/humans.ts'
+import type { FootSkinTone } from '../domain/foot-skin.ts'
 import type { FootCatalogId, HumanCatalogId } from '../domain/catalog.ts'
 import { emptyDocument, type CompareDocument, type Mode } from '../domain/document.ts'
 import {
@@ -11,6 +12,7 @@ import {
   setFeetCameraIntent,
   setFeetNavMode as changeFeetNavMode,
   updateFootShape,
+  setFootSkinTone as changeFootSkinTone,
 } from '../domain/feet-world.ts'
 import {
   resetFootDimension as resetDimension,
@@ -68,6 +70,7 @@ export type CompareApp = {
   placeFoot(catalogId: FootCatalogId): PlaceResult
   updateHumanHeight(id: PlacementId, spec: HeightSpec): UpdateResult
   renameHuman(id: PlacementId, name: string): UpdateResult
+  setFootSkinTone(id: PlacementId, skinTone: FootSkinTone): UpdateResult
   updateFootSize(id: PlacementId, spec: ShoeSpec): FootUpdateResult
   /** Sets toe length, foot width, or foot thickness in millimeters and locks it. */
   setFootDimension(id: PlacementId, dimension: FootDimension, valueMm: number): FootUpdateResult
@@ -231,6 +234,11 @@ export function createCompareApp(options: CompareAppOptions = {}): CompareApp {
       if (change.world !== state.height) {
         publish({ ...state, height: change.world })
       }
+      return change.result
+    },
+    setFootSkinTone(id, skinTone) {
+      const change = changeFootSkinTone(state.feet, id, skinTone)
+      if (change.world !== state.feet) publish({ ...state, feet: change.world })
       return change.result
     },
     updateFootSize(id, spec) {

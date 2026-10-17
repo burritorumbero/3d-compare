@@ -6,7 +6,8 @@ import type { CompareDocument } from '../domain/document.ts'
 import { formatHeight } from '../domain/measure.ts'
 import { formatShoe } from '../domain/shoe-charts.ts'
 import { PlusIcon, TrashIcon } from './icons.tsx'
-import { ModelPreview } from './model-preview.tsx'
+import { FOOT_SKIN_PRESETS } from '../domain/foot-skin.ts'
+import { ModelPreview, FootModelPreview } from './model-preview.tsx'
 
 export function PlacementList({
   app,
@@ -115,12 +116,14 @@ export function PlacementList({
                       >
                         <span className="lineup-index">{String(index + 1).padStart(2, '0')}</span>
                         <span className="lineup-avatar">
-                          <ModelPreview model={entry.model} />
+                          <FootModelPreview placement={placement} />
                         </span>
                         <span className="lineup-copy">
                           <strong>{entry.label}</strong>
                           <small>
                             {formatShoe(placement.shape.lengthMm, document.shoeSystem, entry.sex)}
+                            {' · '}
+                            {FOOT_SKIN_PRESETS[placement.skinTone].label}
                             {placement.shape.locked.length > 0 && ' · custom shape'}
                           </small>
                         </span>

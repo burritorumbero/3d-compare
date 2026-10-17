@@ -1,8 +1,14 @@
 import { footEntry } from '../catalog/feet.ts'
 import { FOOT_CATALOG_IDS, HUMAN_CATALOG_IDS } from '../domain/catalog.ts'
 import { emptyDocument, type CompareDocument, type Mode } from '../domain/document.ts'
+import { defaultFootSkinTone, isFootSkinTone } from '../domain/foot-skin.ts'
 import { placeFoot } from '../domain/feet-world.ts'
-import { FOOT_DIMENSIONS, footDimensionMm, resizeFoot, type FootDimension } from '../domain/foot-shape.ts'
+import {
+  FOOT_DIMENSIONS,
+  footDimensionMm,
+  resizeFoot,
+  type FootDimension,
+} from '../domain/foot-shape.ts'
 import { placeHuman } from '../domain/height-world.ts'
 import { mintPlacementId } from '../domain/ids.ts'
 import {
@@ -25,14 +31,18 @@ import type { ShoeSystem } from '../domain/shoe-charts.ts'
  *
  * Placements list catalog id, size in millimeters, and (for people) a custom
  * name. Feet add each locked dimension in millimeters with a one-letter tag
- * (t toe length, w foot width, i foot thickness); unlocked ones follow foot
- * length, so links stay short and older links without tags still open. Poses are
- * recomputed from order.
+ * (t toe length, w foot width, i foot thickness), plus an optional skin-tone tag
+ * (swhite, sblack, shispanic, sasian). Unlocked dimensions follow foot length;
+ * default tones are omitted, so older links still open. Poses follow order.
  */
 export const SHARE_KEYS = ['mode', 'unit', 'shoe', 'h', 'f'] as const
 
 export function encodeShareQuery(document: CompareDocument): string {
-  const parts = [`mode=${document.mode}`, `unit=${document.heightUnit}`, `shoe=${document.shoeSystem}`]
+  const parts = [
+    `mode=${document.mode}`,
+    `unit=${document.heightUnit}`,
+    `shoe=${document.shoeSystem}`,
+  ]
   if (document.height.placements.length > 0) {
     const people = document.height.placements.map((placement) =>
       [placement.catalogId, placement.heightMm, encodeURIComponent(placement.name ?? '')]
@@ -46,8 +56,12 @@ export function encodeShareQuery(document: CompareDocument): string {
       [
         placement.catalogId,
         placement.shape.lengthMm,
+        ...(placement.skinTone !== defaultFootSkinTone(placement.catalogId)
+          ? [`s${placement.skinTone}`]
+          : []),
         ...placement.shape.locked.map(
-          (dimension) => `${DIMENSION_TAGS[dimension]}${footDimensionMm(placement.shape, dimension)}`,
+          (dimension) =>
+            `${DIMENSION_TAGS[dimension]}${footDimensionMm(placement.shape, dimension)}`,
         ),
       ].join(':'),
     )
@@ -137,7 +151,13 @@ export function decodeShareQuery(query: string): CompareDocument | null {
       continue
     }
 
-    const change = placeHuman(height, mintPlacementId(), catalogId, heightMm(mm), decodePart(rawName ?? ''))
+    const change = placeHuman(
+      height,
+      mintPlacementId(),
+      catalogId,
+      heightMm(mm),
+      decodePart(rawName ?? ''),
+    )
     if (!change.result.ok) {
       break
     }
@@ -169,7 +189,17 @@ export function decodeShareQuery(query: string): CompareDocument | null {
       continue
     }
 
-    const placed = placeFoot(feet, mintPlacementId(), catalogId, shaped.value)
+    const skinTone = tags
+      .map((tag) => (tag.startsWith('s') ? tag.slice(1) : null))
+      .filter(isFootSkinTone)
+      .at(-1)
+    const placed = placeFoot(
+      feet,
+      mintPlacementId(),
+      catalogId,
+      shaped.value,
+      skinTone ?? defaultFootSkinTone(catalogId),
+    )
     if (!placed.result.ok) {
       break
     }

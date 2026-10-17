@@ -12,6 +12,7 @@ import { useModelScene } from '../models.ts'
 import { assertFootRig, solveFoot } from '../../kernel/foot.ts'
 import { solverFor, useRigSolvers } from '../rig-cache.ts'
 import { applyPose, rigNode } from '../rigged.ts'
+import { applyFootSkinTone } from './skin-materials.ts'
 
 /** Gap between the inner edges of the two feet once the authored stance is narrowed. */
 const PAIR_GAP_M = 0.05
@@ -58,7 +59,10 @@ function FootModel({ app, draw }: FigureProps) {
   const scene = useModelScene(draw.model)
   const solvers = useRigSolvers(draw.model)
   const rig = useMemo(() => {
-    const pair = { left: solverFor(solvers, 'LeftFootAndShin'), right: solverFor(solvers, 'RightFootAndShin') }
+    const pair = {
+      left: solverFor(solvers, 'LeftFootAndShin'),
+      right: solverFor(solvers, 'RightFootAndShin'),
+    }
     assertFootRig(pair.left)
     return pair
   }, [solvers])
@@ -71,11 +75,21 @@ function FootModel({ app, draw }: FigureProps) {
     return { left: rigNode(left, rig.left.rig), right: rigNode(right, rig.right.rig) }
   }, [scene, rig, draw.model])
 
+  useLayoutEffect(
+    () =>
+      applyFootSkinTone([...feet.left.meshes, ...feet.right.meshes], draw.catalogId, draw.skinTone),
+    [feet, draw.catalogId, draw.skinTone],
+  )
+
   // The left foot is solved to the shape; the right one mirrors its controls.
   const solved = useMemo(() => {
     const left = solveFoot(rig.left, draw.shape, { initial: lastControls.get(draw.id) })
     lastControls.set(draw.id, left.controls)
-    return { controls: left.controls, left: left.bounds, right: rig.right.evaluate(left.controls).bounds }
+    return {
+      controls: left.controls,
+      left: left.bounds,
+      right: rig.right.evaluate(left.controls).bounds,
+    }
   }, [rig, draw.shape, draw.id])
   useEffect(() => () => void lastControls.delete(draw.id), [draw.id])
   const shift = stanceShift(solved.left, solved.right)
@@ -105,7 +119,11 @@ function FootModel({ app, draw }: FigureProps) {
     <>
       <primitive object={feet.left.root} />
       <primitive object={feet.right.root} />
-      <BlobShadow radiusX={size.x / 2 + 0.03} radiusZ={size.z / 2 + 0.03} position={[center.x, 0, center.z]} />
+      <BlobShadow
+        radiusX={size.x / 2 + 0.03}
+        radiusZ={size.z / 2 + 0.03}
+        position={[center.x, 0, center.z]}
+      />
       {/* Invisible hit box: pointer events raycast this box instead of the textured feet. */}
       <mesh
         position={[center.x, center.y, center.z]}

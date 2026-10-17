@@ -5,6 +5,7 @@ import {
   type FootCatalogId,
   type HumanCatalogId,
 } from './catalog.ts'
+import { defaultFootSkinTone, isFootSkinTone } from './foot-skin.ts'
 import type { CompareDocument, Mode } from './document.ts'
 import { FEET_CAP, type FeetWorld, type PlacedFoot } from './feet-world.ts'
 import {
@@ -170,6 +171,7 @@ function footPlacement(value: unknown, version: 1 | 2): PlacedFoot | null {
     id: placementId(value.id),
     catalogId,
     shape,
+    skinTone: isFootSkinTone(value.skinTone) ? value.skinTone : defaultFootSkinTone(catalogId),
     pose,
   }
 }

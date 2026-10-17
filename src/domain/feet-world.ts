@@ -1,12 +1,9 @@
+import { defaultFootSkinTone, isFootSkinTone, type FootSkinTone } from './foot-skin.ts'
 import type { FootCatalogId } from './catalog.ts'
 import type { PlacementId } from './ids.ts'
 import { nextFootPose, type PlanarDelta, type SurfacePose } from './layout.ts'
 import type { FootShape } from './foot-shape.ts'
-import type {
-  FeetCameraIntent,
-  FeetNavMode,
-  FeetNavSnapshot,
-} from './navigation.ts'
+import type { FeetCameraIntent, FeetNavMode, FeetNavSnapshot } from './navigation.ts'
 import type { PlaceResult, UpdateResult } from './results.ts'
 
 export const FEET_CAP = 10
@@ -16,6 +13,7 @@ export type PlacedFoot = {
   id: PlacementId
   catalogId: FootCatalogId
   shape: FootShape
+  skinTone: FootSkinTone
   pose: SurfacePose
 }
 
@@ -54,6 +52,7 @@ export function placeFoot(
   id: PlacementId,
   catalogId: FootCatalogId,
   initialShape: FootShape,
+  skinTone: FootSkinTone = defaultFootSkinTone(catalogId),
 ): { world: FeetWorld; result: PlaceResult } {
   if (world.placements.length >= FEET_CAP) {
     return { world, result: { ok: false, reason: 'cap-reached' } }
@@ -64,6 +63,7 @@ export function placeFoot(
     id,
     catalogId,
     shape: initialShape,
+    skinTone,
     pose: nextFootPose(world.placements.length),
   }
 
@@ -92,6 +92,26 @@ export function updateFootShape(
       ...world,
       placements: world.placements.map((placement) =>
         placement.id === id ? { ...placement, shape } : placement,
+      ),
+    },
+    result: { ok: true },
+  }
+}
+
+export function setFootSkinTone(
+  world: FeetWorld,
+  id: PlacementId,
+  skinTone: FootSkinTone,
+): { world: FeetWorld; result: UpdateResult } {
+  if (!isFootSkinTone(skinTone)) return { world, result: { ok: false, reason: 'out-of-range' } }
+  const placement = world.placements.find((candidate) => candidate.id === id)
+  if (!placement) return { world, result: { ok: false, reason: 'not-found' } }
+  if (placement.skinTone === skinTone) return { world, result: { ok: true } }
+  return {
+    world: {
+      ...world,
+      placements: world.placements.map((candidate) =>
+        candidate.id === id ? { ...candidate, skinTone } : candidate,
       ),
     },
     result: { ok: true },
@@ -151,10 +171,7 @@ export function setFeetNavMode(world: FeetWorld, navMode: FeetNavMode): FeetWorl
   return world.navMode === navMode ? world : { ...world, navMode }
 }
 
-export function setFeetCameraIntent(
-  world: FeetWorld,
-  cameraIntent: FeetCameraIntent,
-): FeetWorld {
+export function setFeetCameraIntent(world: FeetWorld, cameraIntent: FeetCameraIntent): FeetWorld {
   return { ...world, cameraIntent }
 }
 

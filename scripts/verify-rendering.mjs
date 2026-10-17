@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
+import { FOOT_SKIN_TONES } from '../src/domain/foot-skin.ts'
 import { launchChrome } from './browser.mjs'
 
 const baseUrl = process.env.APP_URL ?? 'http://127.0.0.1:43123'
@@ -26,6 +27,10 @@ try {
     { name: 'male-us20', query: 'mode=feet&shoe=US&f=foot-male:357', frame: true },
     { name: 'female-small', query: 'mode=feet&shoe=US&f=foot-female:208', frame: true },
     { name: 'male-eu58', query: 'mode=feet&shoe=EU&f=foot-male:376', frame: true },
+    ...['female', 'male'].map((sex) => ({
+      name: `${sex}-skin-tones`,
+      query: `mode=feet&shoe=US&f=${FOOT_SKIN_TONES.map((tone) => `foot-${sex}:${sex === 'female' ? 242 : 272}:s${tone}`).join(',')}`,
+    })),
   ]
   for (const scenario of scenarios) {
     await page.goto(`${baseUrl}/?${scenario.query}`, { waitUntil: 'networkidle' })
