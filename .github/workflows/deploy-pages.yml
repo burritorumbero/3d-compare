@@ -41,6 +41,7 @@ jobs:
       - run: npm run verify:kernel
       - run: npm run lint
       - run: npm run build
+      - run: npm run verify:budgets
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

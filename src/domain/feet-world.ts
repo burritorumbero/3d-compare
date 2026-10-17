@@ -43,6 +43,12 @@ export function selectedFoot(world: FeetWorld): PlacedFoot | null {
   return world.placements.find((placement) => placement.id === world.selected) ?? null
 }
 
+/** Automatic columns also reflow old saves and close gaps after removal. */
+export function footLineupPose(world: FeetWorld, id: PlacementId): SurfacePose {
+  const index = world.placements.findIndex((placement) => placement.id === id)
+  return nextFootPose(Math.max(0, index))
+}
+
 export function placeFoot(
   world: FeetWorld,
   id: PlacementId,

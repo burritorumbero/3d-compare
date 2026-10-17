@@ -55,7 +55,7 @@ A share link carries the scene in its query string, for example `?mode=height&un
 
 The models in `public/models` are glTF binaries in meters, Y up, facing +Z, with embedded textures.
 
-- **People.** The six people are built from Daz 3D Genesis 9 characters (Laura, Amala, Kat, Ty, Fabrice, Matt) with clothing, hair, eyes, lashes and brows. Each carries `_SKIN_INDEX`/`_SKIN_WEIGHT` segment weights and `_LANDMARK` ids, and a `*.rig.json` ships next to it. The GLBs use meshopt-compressed geometry and WebP textures (5–6.4 MB each).
+- **People.** The six people are built from Daz 3D Genesis 9 characters (Laura, Amala, Kat, Ty, Fabrice, Matt) with clothing, hair, eyes, lashes and brows. Each carries `_SKIN_INDEX`/`_SKIN_WEIGHT` segment weights and `_LANDMARK` ids, and a `*.rig.json` ships next to it. The GLBs use meshopt-compressed geometry and WebP textures (3.7–4.7 MB each). Color textures retain their authored detail; normal and roughness maps are capped at 512 px.
 - **Feet.** The two pairs of feet are built from the Daz 3D Genesis 9 characters Laura and Matt. Each foot carries `_DEFORM_WEIGHTS` (shin, foot and toes, derived from Genesis 9's bone weights), and a `*.rig.json` ships next to each pair for the parametric kernel.
 - **Records.** `public/models/ASSET_LICENSES.md` records provenance and licensing, and `public/models/manifest.json` describes each file.
 
@@ -66,15 +66,15 @@ The models in `public/models` are glTF binaries in meters, Y up, facing +Z, with
 - fits clothing and hair to that shape, thins hair to a card budget, weights segments and marks landmarks;
 - converts the materials, including the eyes, lashes, brows and hair colors from the Daz presets.
 
-It then optimizes the result for the web (glTF-Transform: 8-bit skin attributes, WebP, meshopt) and writes the rig file from the shipped GLB.
+It then optimizes the result for the web (glTF-Transform: 8-bit skin attributes, WebP, 512 px detail maps, meshopt), writes the rig file from the shipped GLB, and updates the manifest. To repeat only this optimization from the cached raw exports in `tools/assets/.work`, run `npm run assets:people -- --optimize-only [model id ...]`. Without those exports, run the full Blender build first.
 
 ### Rebuilding the feet
 
 `npm run assets:feet` rebuilds the feet from a local Daz library. It needs Blender 4.2 or newer with the Diffeomorphic DAZ importer. Set `BLENDER_BIN` and `DAZ_LIBRARY` if they aren't at the macOS defaults. The script runs `tools/assets/build_feet.py` headless, then writes the rig files.
 
-Scale is exact by construction. Each person is rigged: for any height from 90 cm to 10 ft, the WebAssembly kernel solves the segment bone scales that put the ankles, knees, crotch, shoulders, neck, ears and crown at the ANSUR II proportions for that height, along with the shoulder and hip breadth, foot length and arm length. Stature lands exactly, measured sole to crown with hair excluded. Taller people get relatively longer legs and smaller heads, as real adults do. Each pair of feet is rigged: for every change of shoe size, toe length, width or thickness, the WebAssembly kernel solves the bone scales that make the foot measure exactly those dimensions, and three.js skins the mesh with them. Toes, forefoot and arch deform separately, and the shin stays fixed. The checks prove the result within 0.1 mm, both in the kernel and through the app's own skinning code. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
+Scale is exact by construction. Each person is rigged: for any height from 90 cm to 10 ft, the WebAssembly kernel solves the segment bone scales that put the ankles, knees, crotch, shoulders, neck, ears and crown at the ANSUR II proportions for that height, along with the shoulder and hip breadth, foot length and arm length. Stature lands exactly, measured sole to crown with hair excluded. Taller people get relatively longer legs and smaller heads, as real adults do. Each pair of feet is rigged: for every change of shoe size, toe length, width or thickness, the WebAssembly kernel solves the bone scales that make the foot measure exactly those dimensions, and three.js skins the mesh with them. Toes, forefoot and arch deform separately. Shoe-size changes also grow and move the ankle and lower leg in proportion to heel-to-ball length, so US 20 retains a coherent ankle transition. Toe-only edits leave that length and the lower leg unchanged; width and thickness remain local adjustments. This preserves the model’s proportions, rather than predicting a person’s stature from shoe size. The pair’s stance widens when needed to keep the calves apart. Automatic columns are 62 cm apart on a 3.2 m table, including for saved lineups. The checks prove the result within 0.1 mm, both in the kernel and through the app's own skinning code. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
 
-Models load on demand and are cached per file, so ten copies of one person download it once. Each human decodes to roughly 40 MB of GPU textures, so a full lineup of all six people uses about 240 MB of graphics memory.
+Models load on demand and are cached per file, so ten copies of one person download it once. Estimated decoded RGBA8 texture memory, including mipmaps, is 92–130 MiB per person, about 658 MiB for all six people, and 733 MiB if all eight assets have been loaded across both modes. These estimates exclude geometry, framebuffers, driver overhead and CPU copies. Ten copies share textures, but still draw up to 2.22 million model triangles. `npm run verify:budgets` enforces the resource limits; see [the performance report](.design/PERFORMANCE.md). Real-device frame rates, especially on mobile, remain unmeasured.
 
 ## Parametric kernel
 
@@ -96,14 +96,18 @@ npm run verify:models
 npm run verify:kernel
 npm run lint
 npm run build
+npm run verify:budgets
 ```
 
-`verify:kernel` runs the kernel's Rust tests and then solves 378 foot shapes on rigs built from the shipped feet. Each must measure within 0.1 mm of its target, and three.js skinning must reproduce the kernel's measurements.
+`verify:kernel` runs the kernel's Rust tests and then solves 378 foot shapes on rigs built from the shipped feet. Each must measure within 0.1 mm of its target. Every offered US and EU size is also checked through the app’s three.js skinning on both feet, including the shin’s proportions and position. Toe-only edits and resizing with locked dimensions have regression coverage.
 
 With the development server running, exercise the complete compare flow in a headless browser:
 
 ```bash
 npm run verify:ui
+npm run verify:rendering
 ```
 
 The script launches the system Google Chrome through Playwright on macOS, Windows, and Linux. Point `CHROME_BIN` at a Chrome or Chromium binary to use a different browser build. Screenshots land in `/tmp/3d-compare-verification`.
+
+`verify:rendering` also works against the production preview: run `npm run preview -- --port 43124`, then `APP_URL=http://127.0.0.1:43124 npm run verify:rendering`. It captures the six people at normal height and 10 ft, both US 20 pairs, a small female pair, and EU 58 male feet. Captures go to `/tmp/3d-compare-rendering` (override with `ARTIFACT_DIR`).

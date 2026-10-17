@@ -3,11 +3,11 @@
 // with the Diffeomorphic DAZ importer and the Daz content libraries (see
 // tools/assets/build_people.py). Results ship in public/models.
 //
-//   npm run assets:people [model id ...]
+//   npm run assets:people [--optimize-only] [model id ...]
 //
 // BLENDER_BIN points at Blender; DAZ_LIBRARY and DAZ_EXTRA_LIBRARIES at content.
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { EXTMeshoptCompression } from '@gltf-transform/extensions'
 import { dedup, prune, reorder, textureCompress } from '@gltf-transform/functions'
@@ -28,9 +28,14 @@ const ALL = [
   'male-dark-jeans-sleeveless',
   'male-pale-trousers-shirt',
 ]
-const ids = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ALL
+const optimizeOnly = process.argv.includes('--optimize-only')
+const requested = process.argv.slice(2).filter((arg) => arg !== '--optimize-only')
+const ids = requested.length > 0 ? requested : ALL
+for (const id of ids) {
+  if (!ALL.includes(id)) throw new Error(`Unknown person: ${id}`)
+}
 
-if (!existsSync(blender)) {
+if (!optimizeOnly && !existsSync(blender)) {
   console.error(`Blender not found at ${blender}. Set BLENDER_BIN to the Blender executable.`)
   process.exit(1)
 }
@@ -52,7 +57,14 @@ async function optimize(input, output) {
     const weights = primitive.getAttribute('_SKIN_WEIGHT')
     weights?.setArray(Uint8Array.from(weights.getArray(), (value) => Math.round(value * 255))).setNormalized(true)
   }
-  await document.transform(dedup(), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 88 }))
+  // Detail maps do not need the color maps' resolution. Keep face/albedo/alpha
+  // detail, but cap normal and roughness maps at 512 px to reduce GPU memory.
+  await document.transform(
+    dedup(),
+    prune(),
+    textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 88, resize: [512, 512], slots: /^(normalTexture|metallicRoughnessTexture)$/ }),
+    textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 88, slots: /^(?!normalTexture$|metallicRoughnessTexture$)/ }),
+  )
   await document.transform(reorder({ encoder: MeshoptEncoder, target: 'size' }))
   document
     .createExtension(EXTMeshoptCompression)
@@ -63,24 +75,36 @@ async function optimize(input, output) {
 
 for (const id of ids) {
   const raw = `${work}/${id}.glb`
-  const result = spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', `${root}tools/assets/build_people.py`, '--', id, raw], {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
-  for (const line of `${result.stdout}\n${result.stderr}`.split('\n')) {
-    if (line.startsWith('[build_people]') || /Error|Traceback/.test(line)) {
-      console.log(line.length > 400 ? `${line.slice(0, 400)}…` : line)
+  if (!optimizeOnly) {
+    const result = spawnSync(blender, ['-b', '--python-exit-code', '1', '--python', `${root}tools/assets/build_people.py`, '--', id, raw], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    for (const line of `${result.stdout}\n${result.stderr}`.split('\n')) {
+      if (line.startsWith('[build_people]') || /Error|Traceback/.test(line)) {
+        console.log(line.length > 400 ? `${line.slice(0, 400)}…` : line)
+      }
+    }
+    if (result.status !== 0) {
+      throw new Error(`Blender failed to build ${id}.`)
     }
   }
-  if (result.status !== 0 || !existsSync(raw)) {
-    console.error(`Blender failed to build ${id}.`)
-    process.exit(1)
+  if (!existsSync(raw)) {
+    throw new Error(`Missing raw asset ${raw}; run npm run assets:people ${id} first.`)
   }
 
   const glb = `${models}/${id}.glb`
   await optimize(raw, glb)
   rmSync(`${work}/.${id}-textures`, { recursive: true, force: true })
   // Optimization reorders vertices, so the rig is written from the shipped file.
-  writeFileSync(`${models}/${id}.rig.json`, `${JSON.stringify(personRigFile(await readModel(glb)))}\n`)
+  const model = await readModel(glb)
+  writeFileSync(`${models}/${id}.rig.json`, `${JSON.stringify(personRigFile(model))}\n`)
+  const manifestPath = `${models}/manifest.json`
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const entry = manifest.find((candidate) => candidate.id === id)
+  if (!entry) throw new Error(`Missing manifest entry: ${id}`)
+  entry.bytes = statSync(glb).size
+  entry.triangles = model.triangles
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
   console.log(`Wrote public/models/${id}.glb (${(statSync(glb).size / 1e6).toFixed(2)} MB, raw ${(statSync(raw).size / 1e6).toFixed(1)} MB) and its rig.`)
 }

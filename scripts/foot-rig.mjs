@@ -3,7 +3,7 @@
 // from Genesis 9's bone weights by tools/assets/build_feet.py).
 //
 // Bones follow the rig contract (identity rest rotation, heads on the floor):
-//   shin   root at the heel; holds the leg above the ankle
+//   shin   root at the heel; grows the ankle and lower leg with heel-to-ball length
 //   foot   child of shin at the heel; length, width, and thickness of the foot
 //   toes   child of foot at the ball line, where the toes weight crosses 0.5
 // The rig samples only the vertices its measures and hull need; `source` maps
@@ -51,6 +51,7 @@ export function footRig(glb, meshName) {
   const ballZ = ballLine(soleAll)
   const midZ = heelZ + length / 2
   const centerX = (sole.min[0] + sole.max[0]) / 2
+  const shinTop = Math.max(...all.map((point) => point[1]))
 
   // Only the ends of the sole can set its length; the ball line marks toe length.
   const isSoleEnd = (p) => isSole(p) && (p[2] < heelZ + 0.015 || p[2] > tipZ - 0.015)
@@ -60,7 +61,7 @@ export function footRig(glb, meshName) {
   const isInstep = (p, w) => Math.abs(p[2] - midZ) < 0.004 && w[0] < 0.5
   const isHull = (p, index) => index % 24 === 0 || isSoleEnd(p)
 
-  const groups = { soleEnds: [], tip: [], ball: [], forefoot: [], instep: [], hull: [] }
+  const groups = { soleEnds: [], tip: [], ball: [], forefoot: [], instep: [], shinTop: [], hull: [] }
   const source = []
   const positions = []
   const skinBones = []
@@ -73,6 +74,7 @@ export function footRig(glb, meshName) {
       ball: isBall(point),
       forefoot: isForefoot(point),
       instep: isInstep(point, w),
+      shinTop: point[1] > shinTop - 0.001 && w[0] > 0.999,
       hull: isHull(point, index),
     }
     if (!Object.values(membership).some(Boolean)) {
@@ -109,6 +111,9 @@ export function footRig(glb, meshName) {
     vertices: { source, positions, skinBones, skinWeights },
     morphs: [],
     controls: [
+      // A common scale preserves the Achilles/ankle transition at every shoe
+      // size. The four foot controls remain local adjustments within it.
+      { name: 'lowerLegScale', min: 0.5, max: 2.5, channels: ['x', 'y', 'z'].map((axis) => ({ bone: 'shin', axis, gain: 1 })) },
       { name: 'footLength', min: 0.4, max: 2.5, channels: [{ bone: 'foot', axis: 'z', gain: 1 }] },
       { name: 'toeLength', min: 0.4, max: 2.5, channels: [{ bone: 'toes', axis: 'z', gain: 1 }] },
       { name: 'width', min: 0.4, max: 2.5, channels: [{ bone: 'foot', axis: 'x', gain: 1 }] },
@@ -120,6 +125,7 @@ export function footRig(glb, meshName) {
       { name: 'toeLength', kind: 'between', from: 'ball', to: 'tip', axis: 'z' },
       { name: 'ballWidth', kind: 'extent', group: 'forefoot', axis: 'x' },
       { name: 'instepHeight', kind: 'max', group: 'instep', axis: 'y' },
+      { name: 'lowerLegHeight', kind: 'max', group: 'shinTop', axis: 'y' },
     ],
     hull: 'hull',
   }

@@ -3,7 +3,7 @@ import { useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useRef, type ComponentRef } from 'react'
 import * as THREE from 'three'
 import type { NavRig } from '../../app/compare-app.ts'
-import type { FeetWorld } from '../../domain/feet-world.ts'
+import { footLineupPose, type FeetWorld } from '../../domain/feet-world.ts'
 import type { FeetOrbitSnapshot } from '../../domain/navigation.ts'
 
 function defaultView(): FeetOrbitSnapshot {
@@ -21,13 +21,14 @@ function selectionView(world: FeetWorld): FeetOrbitSnapshot {
   }
 
   const length = selected.shape.lengthMm / 1000
+  const { x, z } = footLineupPose(world, selected.id)
   return {
     kind: 'orbit',
-    target: [selected.pose.x, length * 0.6, selected.pose.z + length * 0.35],
+    target: [x, length * 0.6, z + length * 0.35],
     position: [
-      selected.pose.x + length * 1.9,
+      x + length * 1.9,
       length * 2.4,
-      selected.pose.z + length * 2.9,
+      z + length * 2.9,
     ],
   }
 }

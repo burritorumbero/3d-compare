@@ -1,6 +1,6 @@
 # Parametric sizing: assessment and work plan
 
-Status, 2026-10-17: Phases 1–5 are done, and Phase 0 is partly done. See the checkboxes below.
+Status, 2026-10-17: Phases 1–6 are done, and Phase 0 is partly done. See the checkboxes below.
 
 ## Goal
 
@@ -218,10 +218,15 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
   - `verify-ui` passes.
 - Known: 150–220k triangles per person (mostly hair cards and the body), so ten people is about 2M triangles. Hair and brows are textured cards, not strands.
 
-### Phase 6: closeout
+### Phase 6: closeout and proportional lower legs
 
-- [ ] README, `IMPLEMENTATION_STATUS.md` and `.audit` entries.
-- [ ] Bundle and GPU budget check (the Vite chunk warning, wasm size, texture memory before and after).
+- [x] README, `IMPLEMENTATION_STATUS.md`, `.audit` entries and `.design/PERFORMANCE.md`.
+- [x] Bundle and GPU budget check: `verify:budgets` enforces GLB/rig sizes, triangles, draw calls, decoded texture memory, JavaScript chunks/total and WASM size; it runs after the production build in CI. `.audit/performance.json` records the measurements.
+- [x] Normal/roughness maps capped at 512 px: all cached model textures drop from approximately 1,082 to 733 MiB. Geometry and color texture bytes are unchanged. Three.js and React have separate cacheable chunks; the 750 kB per-chunk limit is enforced alongside a 1.3 MB total JS limit.
+- [x] User correction: shoe size now grows and moves the ankle/shin with heel-to-ball length. A fifth rig control drives uniform lower-leg growth; local foot controls preserve exact measurements. Toe-only edits leave the leg alone. The stance can widen to keep grown calves apart; automatic table columns reflow at 62 cm spacing, including old saves.
+- [x] Regression coverage: the 378-shape grid, both skinned feet at every US/EU size, locked dimensions, and toe-only edits. Worst foot error 0.045 mm.
+- [x] Browser rendering checks work on the production build and capture people at normal/10 ft height, US 20 feet, and small/large chart endpoints.
+- Resource checks are complete; real-device frame-rate profiling and additional skin shaders remain future work. Software WebGL cannot establish mobile GPU performance.
 
 ## Local model (MLX-Serve, `localhost:11234`) usage
 
