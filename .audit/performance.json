@@ -64,7 +64,7 @@
       "file": "female-feet-shins.glb",
       "glbBytes": 2411084,
       "rigBytes": 310750,
-      "previewBytes": 28180,
+      "previewBytes": 29688,
       "triangles": 40544,
       "drawCalls": 4,
       "textures": 5,
@@ -81,6 +81,38 @@
       "textureBytes": 40544756
     }
   ],
+  "skinTextures": [
+    {
+      "file": "female-white-color.webp",
+      "bytes": 106024,
+      "textureBytes": 11236012
+    },
+    {
+      "file": "female-white-normal.webp",
+      "bytes": 1172,
+      "textureBytes": 701100
+    },
+    {
+      "file": "female-white-roughness.webp",
+      "bytes": 14390,
+      "textureBytes": 701100
+    },
+    {
+      "file": "female-asian-color.webp",
+      "bytes": 89004,
+      "textureBytes": 11236012
+    },
+    {
+      "file": "female-asian-normal.webp",
+      "bytes": 1060,
+      "textureBytes": 701100
+    },
+    {
+      "file": "female-asian-roughness.webp",
+      "bytes": 17006,
+      "textureBytes": 701100
+    }
+  ],
   "assets": [
     {
       "file": "index-BxjYLDsR.css",
@@ -88,9 +120,9 @@
       "gzipBytes": 7112
     },
     {
-      "file": "index-jWdWNDRm.js",
-      "bytes": 338702,
-      "gzipBytes": 102714
+      "file": "index-DMvbsGrn.js",
+      "bytes": 339400,
+      "gzipBytes": 103007
     },
     {
       "file": "kernel_bg-C2gzpbkm.wasm",
@@ -114,11 +146,13 @@
     }
   ],
   "totals": {
-    "javascriptBytes": 1255805,
-    "javascriptGzipBytes": 346241,
+    "javascriptBytes": 1256503,
+    "javascriptGzipBytes": 346534,
     "allModelBytes": 29748144,
-    "allPreviewBytes": 122952,
-    "allTextureBytes": 768722916,
+    "allPreviewBytes": 124460,
+    "allSkinDownloadBytes": 228656,
+    "allSkinTextureBytes": 25276424,
+    "allTextureBytes": 793999340,
     "maxHeightTriangles": 2216480,
     "maxHeightDrawCalls": 340,
     "maxFeetTriangles": 412880

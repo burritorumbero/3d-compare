@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'n
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
+import sharp from 'sharp'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { FEET_CAP } from '../src/domain/feet-world.ts'
@@ -20,8 +21,12 @@ const budget = (actual, limit, name) => assert.ok(actual <= limit, `${name}: ${a
 // Count each texture per asset once: placements share geometry and textures.
 // Driver overhead, framebuffers, environment maps and CPU copies are excluded.
 function textureBytes(texture) {
-  let [width, height] = texture.getSize() ?? []
+  const [width, height] = texture.getSize() ?? []
   assert.ok(width > 0 && height > 0, `Cannot measure texture ${texture.getName()}`)
+  return decodedTextureBytes(width, height)
+}
+
+function decodedTextureBytes(width, height) {
   let bytes = 0
   while (true) {
     bytes += width * height * 4
@@ -65,6 +70,20 @@ for (const entry of [...HUMAN_CATALOG, ...FEET_CATALOG]) {
   models.push(stats)
 }
 
+// Optional complexion maps are cached across pairs, in addition to GLB maps.
+const skinManifest = JSON.parse(readFileSync(`${root}dist/skins/manifest.json`, 'utf8'))
+const skinTextures = await Promise.all(skinManifest.textures.map(async (entry) => {
+  const path = `${root}dist/skins/${entry.file}`
+  const bytes = statSync(path).size
+  const { width, height } = await sharp(path).metadata()
+  assert.equal(bytes, entry.bytes, `${entry.file} manifest bytes`)
+  assert.equal(width, entry.width, `${entry.file} manifest width`)
+  assert.equal(height, entry.height, `${entry.file} manifest height`)
+  budget(bytes, 150_000, `${entry.file} download`)
+  budget(Math.max(width, height), entry.file.endsWith('-color.webp') ? 2048 : 512, `${entry.file} resolution`)
+  return { file: entry.file, bytes, textureBytes: decodedTextureBytes(width, height) }
+}))
+
 const assets = readdirSync(`${root}dist/assets`).filter((file) => /\.(js|css|wasm)$/.test(file)).sort().map((file) => {
   const bytes = readFileSync(`${root}dist/assets/${file}`)
   return { file, bytes: bytes.length, gzipBytes: gzipSync(bytes).length }
@@ -78,7 +97,9 @@ const totals = {
   javascriptGzipBytes: sum(javascript, 'gzipBytes'),
   allModelBytes: sum(models, 'glbBytes'),
   allPreviewBytes: sum(models, 'previewBytes'),
-  allTextureBytes: sum(models, 'textureBytes'),
+  allSkinDownloadBytes: sum(skinTextures, 'bytes'),
+  allSkinTextureBytes: sum(skinTextures, 'textureBytes'),
+  allTextureBytes: sum(models, 'textureBytes') + sum(skinTextures, 'textureBytes'),
   maxHeightTriangles: Math.max(...models.slice(0, HUMAN_CATALOG.length).map((model) => model.triangles)) * HEIGHT_CAP,
   maxHeightDrawCalls: Math.max(...models.slice(0, HUMAN_CATALOG.length).map((model) => model.drawCalls)) * HEIGHT_CAP,
   maxFeetTriangles: Math.max(...models.slice(HUMAN_CATALOG.length).map((model) => model.triangles)) * FEET_CAP,
@@ -87,9 +108,10 @@ for (const asset of javascript) budget(asset.bytes, 750_000, `${asset.file} chun
 budget(totals.javascriptBytes, 1_300_000, 'total JavaScript')
 budget(totals.javascriptGzipBytes, 360_000, 'total JavaScript gzip')
 budget(totals.allPreviewBytes, 150_000, 'all model previews')
+budget(totals.allSkinDownloadBytes, 300_000, 'all optional skin textures')
 budget(wasm[0].bytes, 90_000, 'WASM')
 budget(wasm[0].gzipBytes, 35_000, 'WASM gzip')
-budget(totals.allTextureBytes, 768 * MiB, 'all eight assets texture memory')
+budget(totals.allTextureBytes, 768 * MiB, 'all model and complexion texture memory')
 budget(totals.maxHeightTriangles, 2_300_000, 'ten-person triangles')
 budget(totals.maxHeightDrawCalls, 350, 'ten-person draw calls')
 budget(totals.maxFeetTriangles, 430_000, 'ten-pair triangles')
@@ -101,5 +123,5 @@ console.table(models.map((model) => ({
 console.log(`Budget verification passed: JS ${(totals.javascriptBytes / 1000).toFixed(1)} kB / ${(totals.javascriptGzipBytes / 1000).toFixed(1)} kB gzip; WASM ${(wasm[0].bytes / 1000).toFixed(1)} kB; all cached model textures ${(totals.allTextureBytes / MiB).toFixed(1)} MiB.`)
 if (process.env.BUDGET_REPORT) {
   mkdirSync(dirname(process.env.BUDGET_REPORT), { recursive: true })
-  writeFileSync(process.env.BUDGET_REPORT, `${JSON.stringify({ models, assets, totals }, null, 2)}\n`)
+  writeFileSync(process.env.BUDGET_REPORT, `${JSON.stringify({ models, skinTextures, assets, totals }, null, 2)}\n`)
 }

@@ -1,0 +1,11 @@
+{
+  "model": "female-feet-shins.glb",
+  "uvSha256": "b77f1bbee7ff3286305e86b07eef9d4b434b420b4535a8bff7c2eaee89b4b6f8",
+  "uvTile": [2, 0],
+  "uvMin": [0.0679631233215332, 0.004616022575646639],
+  "uvMax": [0.932037353515625, 0.4385267496109009],
+  "presets": {
+    "white": "Feminine_02",
+    "asian": "Feminine_01"
+  }
+}

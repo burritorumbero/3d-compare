@@ -1,0 +1,55 @@
+{
+  "model": "female-feet-shins.glb",
+  "uvMin": [
+    0.0679631233215332,
+    0.004616022575646639
+  ],
+  "uvMax": [
+    0.932037353515625,
+    0.4385267496109009
+  ],
+  "textures": [
+    {
+      "file": "female-white-color.webp",
+      "source": "Runtime/Textures/DAZ/Characters/Genesis9/Base/Feminine_02/G9Feminine02_Legs_D_1003.jpg",
+      "width": 2048,
+      "height": 1029,
+      "bytes": 106024
+    },
+    {
+      "file": "female-white-normal.webp",
+      "source": "Runtime/Textures/DAZ/Characters/Genesis9/Base/Feminine_02/G9Feminine02_Legs_NM_1003.jpg",
+      "width": 512,
+      "height": 257,
+      "bytes": 1172
+    },
+    {
+      "file": "female-white-roughness.webp",
+      "source": "Runtime/Textures/DAZ/Characters/Genesis9/Base/Feminine_02/G9Feminine02_Legs_R_1003.jpg",
+      "width": 512,
+      "height": 257,
+      "bytes": 14390
+    },
+    {
+      "file": "female-asian-color.webp",
+      "source": "Runtime/Textures/DAZ/Characters/Genesis9/Base/Feminine_01/G9Feminine01_Legs_D_1003.jpg",
+      "width": 2048,
+      "height": 1029,
+      "bytes": 89004
+    },
+    {
+      "file": "female-asian-normal.webp",
+      "source": "Runtime/Textures/DAZ/Characters/Genesis9/Base/Feminine_01/G9Feminine01_Legs_NM_1003.jpg",
+      "width": 512,
+      "height": 257,
+      "bytes": 1060
+    },
+    {
+      "file": "female-asian-roughness.webp",
+      "source": "Runtime/Textures/DAZ/Characters/Genesis9/Base/Feminine_01/G9Feminine01_Legs_R_1003.jpg",
+      "width": 512,
+      "height": 257,
+      "bytes": 17006
+    }
+  ]
+}

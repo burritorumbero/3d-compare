@@ -57,10 +57,17 @@ try {
         })
         let restoreMaterials = () => {}
         if (feet) {
-          const { applyFootSkinTone } = await import('/src/scene/feet/skin-materials.ts')
+          const { applyFootSkinTone, configureFootSkinMaps } = await import('/src/scene/feet/skin-materials.ts')
+          const { footSkinTextureFiles } = await import('/src/catalog/foot-skins.ts')
+          const loader = new THREE.TextureLoader()
+          const maps = configureFootSkinMaps(await Promise.all(footSkinTextureFiles(catalogId, skinTone).map((file) => loader.loadAsync(`/skins/${file}`))))
           const meshes = []
           model.traverse((child) => { if (child.isMesh) meshes.push(child) })
-          restoreMaterials = applyFootSkinTone(meshes, catalogId, skinTone)
+          const restore = applyFootSkinTone(meshes, catalogId, skinTone, maps)
+          restoreMaterials = () => {
+            restore()
+            if (maps) for (const texture of Object.values(maps)) texture.dispose()
+          }
         }
         scene.add(model)
         const bounds = new THREE.Box3().setFromObject(model)

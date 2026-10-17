@@ -3,11 +3,14 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
+import sharp from 'sharp'
 import * as THREE from 'three'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
+import { footSkinTextureFiles } from '../src/catalog/foot-skins.ts'
 import { defaultFootSkinTone, FOOT_SKIN_TONES } from '../src/domain/foot-skin.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
-import { applyFootSkinTone } from '../src/scene/feet/skin-materials.ts'
+import { applyFootSkinTone, configureFootSkinMaps } from '../src/scene/feet/skin-materials.ts'
 import { bounds } from './glb.mjs'
 import { readModel } from './model-io.mjs'
 
@@ -93,24 +96,36 @@ for (const entry of FEET_CATALOG) {
   const pair = [new THREE.Mesh(geometry, materials), new THREE.Mesh(geometry, materials)]
   const neighbor = new THREE.Mesh(geometry, materials)
   const sourceColor = skin.color.clone()
+  const replacements = Object.fromEntries(FOOT_SKIN_TONES.map((tone) => [tone,
+    configureFootSkinMaps(footSkinTextureFiles(entry.id, tone).map(() => new THREE.Texture())),
+  ]))
   let textureDisposals = 0
-  for (const material of materials) {
+  for (const material of [...materials, ...Object.values(replacements).filter(Boolean)]) {
     for (const map of [material.map, material.normalMap, material.roughnessMap]) {
       map.addEventListener('dispose', () => { textureDisposals += 1 })
     }
   }
   const colors = new Set()
   for (const tone of FOOT_SKIN_TONES) {
-    const restore = applyFootSkinTone(pair, entry.id, tone)
+    const maps = replacements[tone]
+    if (maps) {
+      assert.throws(() => applyFootSkinTone(pair, entry.id, tone), /Missing complexion textures/, 'never fall back to tinting tan skin for a light preset')
+      for (const [key, texture] of Object.entries(maps)) {
+        assert.equal(texture.flipY, false, 'external maps align with the GLB UV orientation')
+        assert.equal(texture.colorSpace, key === 'map' ? THREE.SRGBColorSpace : THREE.NoColorSpace)
+      }
+    }
+    const restore = applyFootSkinTone(pair, entry.id, tone, maps)
     const tinted = pair[0].material.find((material) => material.name.endsWith('_Skin'))
-    colors.add(tinted.color.toArray().join(','))
+    colors.add(`${tinted.color.toArray().join(',')}|${tinted.map.uuid}`)
     assert.notEqual(tinted, skin)
     assert.equal(pair[1].material.find((material) => material.name.endsWith('_Skin')), tinted, 'both feet and shins use the same tone')
     assert.equal(pair[0].material.find((material) => material.name.endsWith('_Toenails')), nails, 'toenails keep their authored material')
     assert.equal(neighbor.material, materials, 'neighboring pair keeps its original materials')
     assert.deepEqual(skin.color, sourceColor, 'cached skin is never mutated')
     assert.equal(pair[0].geometry, geometry, 'appearance leaves geometry alone')
-    for (const key of ['map', 'normalMap', 'roughnessMap']) assert.equal(tinted[key], skin[key], `shares the original ${key}`)
+    for (const key of ['map', 'normalMap', 'roughnessMap']) assert.equal(tinted[key], (maps ?? skin)[key], `shares the selected ${key}`)
+    if (maps) assert.deepEqual(tinted.color.toArray(), [1, 1, 1], 'independent complexions receive no color multiplier')
     assert.equal(tinted.depthWrite, true, 'skin stays opaque and occludes ruler text')
     if (tone === defaultFootSkinTone(entry.id)) assert.deepEqual(tinted.color, sourceColor, 'default exactly preserves authored color')
     let disposed = false
@@ -129,6 +144,33 @@ for (const entry of FEET_CATALOG) {
     material.dispose()
   }
   geometry.dispose()
+  for (const maps of Object.values(replacements).filter(Boolean)) for (const texture of Object.values(maps)) texture.dispose()
+  if (entry.id === 'foot-female') {
+    const source = JSON.parse(readFileSync(new URL('../tools/assets/foot-skin-sources.json', import.meta.url)))
+    const uvHash = createHash('sha256').update(JSON.stringify(model.meshNames.map((name) => model.attribute(name, 'TEXCOORD_0')))).digest('hex')
+    assert.equal(uvHash, source.uvSha256, 'complexion crops match the shipped female foot UVs')
+    const original = model.document.getRoot().listMaterials().find((material) => material.getName().endsWith('_Skin')).getBaseColorTexture().getImage()
+    const base = await sharp(Buffer.from(original)).resize(256, 129).removeAlpha().raw().toBuffer()
+    for (const tone of ['white', 'asian']) {
+      const file = new URL(`../public/skins/${footSkinTextureFiles(entry.id, tone)[0]}`, import.meta.url)
+      const pixels = await sharp(fileURLToPath(file)).resize(256, 129).removeAlpha().raw().toBuffer()
+      // Fit the best per-channel brightness/contrast transformation of the old
+      // tan map. An independent complexion must retain substantial spatial
+      // differences that no single global color adjustment can reproduce.
+      let residual = 0
+      for (let channel = 0; channel < 3; channel++) {
+        let x = 0, y = 0, xx = 0, xy = 0
+        const n = base.length / 3
+        for (let i = channel; i < base.length; i += 3) { x += base[i]; y += pixels[i]; xx += base[i] ** 2; xy += base[i] * pixels[i] }
+        const slope = (xy - x * y / n) / (xx - x * x / n)
+        const offset = (y - slope * x) / n
+        for (let i = channel; i < base.length; i += 3) residual += (pixels[i] - (slope * base[i] + offset)) ** 2
+      }
+      const error = Math.sqrt(residual / base.length)
+      assert.ok(error > 4, `${tone} must be an independent complexion, not a global tint (fit residual ${error.toFixed(2)})`)
+      console.log(`Female ${tone}: independent complexion, global-tint fit residual ${error.toFixed(2)}/255`)
+    }
+  }
   for (const meshName of ['LeftFootAndShin', 'RightFootAndShin']) {
     const weights = model.attribute(meshName, '_DEFORM_WEIGHTS')
     assert.equal(weights.length, model.positions(meshName).length, `${entry.id}: ${meshName} has deform weights on every vertex`)

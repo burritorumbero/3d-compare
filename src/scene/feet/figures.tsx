@@ -13,6 +13,7 @@ import { assertFootRig, solveFoot } from '../../kernel/foot.ts'
 import { solverFor, useRigSolvers } from '../rig-cache.ts'
 import { applyPose, rigNode } from '../rigged.ts'
 import { applyFootSkinTone } from './skin-materials.ts'
+import { useFootSkinMaps } from './skin-textures.ts'
 
 /** Gap between the inner edges of the two feet once the authored stance is narrowed. */
 const PAIR_GAP_M = 0.05
@@ -57,6 +58,7 @@ function LoadingSilhouette({ scale }: { scale: number }) {
 
 function FootModel({ app, draw }: FigureProps) {
   const scene = useModelScene(draw.model)
+  const skinMaps = useFootSkinMaps(draw.catalogId, draw.skinTone)
   const solvers = useRigSolvers(draw.model)
   const rig = useMemo(() => {
     const pair = {
@@ -77,8 +79,13 @@ function FootModel({ app, draw }: FigureProps) {
 
   useLayoutEffect(
     () =>
-      applyFootSkinTone([...feet.left.meshes, ...feet.right.meshes], draw.catalogId, draw.skinTone),
-    [feet, draw.catalogId, draw.skinTone],
+      applyFootSkinTone(
+        [...feet.left.meshes, ...feet.right.meshes],
+        draw.catalogId,
+        draw.skinTone,
+        skinMaps,
+      ),
+    [feet, draw.catalogId, draw.skinTone, skinMaps],
   )
 
   // The left foot is solved to the shape; the right one mirrors its controls.
