@@ -1,0 +1,117 @@
+{
+  "models": [
+    {
+      "file": "female-tan-dress.glb",
+      "glbBytes": 4668636,
+      "rigBytes": 550918,
+      "triangles": 150626,
+      "drawCalls": 23,
+      "textures": 49,
+      "textureBytes": 103207932
+    },
+    {
+      "file": "female-dark-jeans-tshirt.glb",
+      "glbBytes": 4019892,
+      "rigBytes": 660701,
+      "triangles": 188408,
+      "drawCalls": 19,
+      "textures": 47,
+      "textureBytes": 96615140
+    },
+    {
+      "file": "female-pale-shorts-croptop.glb",
+      "glbBytes": 4253112,
+      "rigBytes": 664712,
+      "triangles": 162877,
+      "drawCalls": 32,
+      "textures": 76,
+      "textureBytes": 136217632
+    },
+    {
+      "file": "male-tan-shorts-tshirt.glb",
+      "glbBytes": 3665572,
+      "rigBytes": 660268,
+      "triangles": 161201,
+      "drawCalls": 31,
+      "textures": 66,
+      "textureBytes": 125859288
+    },
+    {
+      "file": "male-dark-jeans-sleeveless.glb",
+      "glbBytes": 3883656,
+      "rigBytes": 667435,
+      "triangles": 175529,
+      "drawCalls": 34,
+      "textures": 82,
+      "textureBytes": 128384996
+    },
+    {
+      "file": "male-pale-trousers-shirt.glb",
+      "glbBytes": 4534108,
+      "rigBytes": 696234,
+      "triangles": 221648,
+      "drawCalls": 22,
+      "textures": 46,
+      "textureBytes": 99377856
+    },
+    {
+      "file": "female-feet-shins.glb",
+      "glbBytes": 2411084,
+      "rigBytes": 310750,
+      "triangles": 40544,
+      "drawCalls": 4,
+      "textures": 5,
+      "textureBytes": 38515316
+    },
+    {
+      "file": "male-feet-shins.glb",
+      "glbBytes": 2312084,
+      "rigBytes": 267757,
+      "triangles": 41288,
+      "drawCalls": 4,
+      "textures": 5,
+      "textureBytes": 40544756
+    }
+  ],
+  "assets": [
+    {
+      "file": "index-DJfkMwW2.js",
+      "bytes": 333696,
+      "gzipBytes": 101003
+    },
+    {
+      "file": "index-OHw_1d4B.css",
+      "bytes": 31712,
+      "gzipBytes": 7878
+    },
+    {
+      "file": "kernel_bg-C2gzpbkm.wasm",
+      "bytes": 84986,
+      "gzipBytes": 33404
+    },
+    {
+      "file": "react-D48Lzm2I.js",
+      "bytes": 189604,
+      "gzipBytes": 58952
+    },
+    {
+      "file": "rolldown-runtime-hePW80VL.js",
+      "bytes": 716,
+      "gzipBytes": 428
+    },
+    {
+      "file": "three-Bw0rqu_h.js",
+      "bytes": 726783,
+      "gzipBytes": 184147
+    }
+  ],
+  "totals": {
+    "javascriptBytes": 1250799,
+    "javascriptGzipBytes": 344530,
+    "allModelBytes": 29748144,
+    "allTextureBytes": 768722916,
+    "maxHeightTriangles": 2216480,
+    "maxHeightDrawCalls": 340,
+    "maxFeetTriangles": 412880
+  }
+}
