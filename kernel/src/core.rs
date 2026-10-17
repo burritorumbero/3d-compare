@@ -2,8 +2,10 @@
 //!
 //! A rig is a hierarchy of deform bones whose rest rotation is the identity, so
 //! every bone transform is an axis-aligned scale about the bone head, composed
-//! down the chain. Bone heads sit on the floor plane (y = 0), so scaling never
-//! lifts a sole off the floor. The same transforms drive the GPU through
+//! down the chain. A bone either inherits its parent's scale (a foot's toes grow
+//! with the foot) or keeps only its own while still moving with its parent (a
+//! longer shin lifts the thigh without stretching it). Feet rigs put bone heads on
+//! the floor; body rigs chain upward from a root on the floor, so soles stay down. The same transforms drive the GPU through
 //! three.js bone scales; this module evaluates them on the CPU for the few
 //! vertices that measurements and bounds need, and solves the inverse problem:
 //! which control values make the mesh measure what the user asked for.
@@ -35,6 +37,8 @@ pub enum Measure {
 pub struct Rig {
     pub parents: Vec<i32>,
     pub heads: Vec<[f64; 3]>,
+    /// Per bone: whether its world scale includes its parent's scale.
+    pub inherit_scale: Vec<bool>,
     pub positions: Vec<[f64; 3]>,
     /// Four bone influences per vertex.
     pub skin_bones: Vec<[usize; 4]>,
@@ -69,7 +73,10 @@ fn invalid<T>(message: impl Into<String>) -> Result<T, RigError> {
 /// Bone scales and morph weights for a set of controls: what the GPU needs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pose {
+    /// Local scale per bone, as `bone.scale` in a three.js hierarchy.
     pub bone_scales: Vec<[f64; 3]>,
+    /// World scale per bone: its own scale, times its parent's when it inherits.
+    pub world_scales: Vec<[f64; 3]>,
     pub morph_weights: Vec<f64>,
 }
 
@@ -104,8 +111,8 @@ pub struct Problem<'a> {
 impl Rig {
     pub fn validate(&self) -> Result<(), RigError> {
         let bones = self.parents.len();
-        if self.heads.len() != bones {
-            return invalid("Every bone needs a head position.");
+        if self.heads.len() != bones || self.inherit_scale.len() != bones {
+            return invalid("Every bone needs a head position and an inherit flag.");
         }
         for (index, &parent) in self.parents.iter().enumerate() {
             if parent >= index as i32 || parent < -1 {
@@ -165,12 +172,12 @@ impl Rig {
     }
 
     pub fn pose(&self, controls: &[f64]) -> Pose {
-        let mut bone_scales = vec![[1.0; 3]; self.parents.len()];
+        let mut own = vec![[1.0; 3]; self.parents.len()];
         let mut morph_weights = vec![0.0; self.morphs.len()];
         for channel in &self.channels {
             match *channel {
                 Channel::BoneScale { control, bone, axis, gain } => {
-                    bone_scales[bone][axis] *= 1.0 + gain * (controls[control] - 1.0);
+                    own[bone][axis] *= 1.0 + gain * (controls[control] - 1.0);
                 }
                 Channel::Morph { control, morph, gain } => {
                     morph_weights[morph] += gain * (controls[control] - 1.0);
@@ -180,7 +187,21 @@ impl Rig {
         for weight in &mut morph_weights {
             *weight = weight.clamp(0.0, 1.0);
         }
-        Pose { bone_scales, morph_weights }
+        let mut world_scales: Vec<[f64; 3]> = Vec::with_capacity(own.len());
+        let mut bone_scales = Vec::with_capacity(own.len());
+        for (bone, &parent) in self.parents.iter().enumerate() {
+            let parent_world = if parent < 0 { [1.0; 3] } else { world_scales[parent as usize] };
+            let world = if self.inherit_scale[bone] {
+                [parent_world[0] * own[bone][0], parent_world[1] * own[bone][1], parent_world[2] * own[bone][2]]
+            } else {
+                own[bone]
+            };
+            // three.js composes local scales down the hierarchy, so a bone that keeps
+            // only its own scale divides out its parent's.
+            bone_scales.push([world[0] / parent_world[0], world[1] / parent_world[1], world[2] / parent_world[2]]);
+            world_scales.push(world);
+        }
+        Pose { bone_scales, world_scales, morph_weights }
     }
 
     /// Skinning transforms as v -> scale * v + offset, composed parent first.
@@ -192,13 +213,12 @@ impl Rig {
             } else {
                 transforms[parent as usize]
             };
-            let local = pose.bone_scales[bone];
+            // The head rides on the parent's transform; the bone scales about it.
+            let scale = pose.world_scales[bone];
             let head = self.heads[bone];
-            let mut scale = [0.0; 3];
             let mut offset = [0.0; 3];
             for axis in 0..3 {
-                scale[axis] = parent_scale[axis] * local[axis];
-                offset[axis] = parent_scale[axis] * (head[axis] - local[axis] * head[axis]) + parent_offset[axis];
+                offset[axis] = parent_scale[axis] * head[axis] + parent_offset[axis] - scale[axis] * head[axis];
             }
             transforms.push((scale, offset));
         }
@@ -457,6 +477,7 @@ mod tests {
         Rig {
             parents: vec![-1, 0],
             heads: vec![[0.0, 0.0, 0.0], [0.0, 0.0, 0.7]],
+            inherit_scale: vec![true, true],
             positions,
             skin_bones,
             skin_weights,
@@ -504,6 +525,44 @@ mod tests {
         let points = rig.deform(&[1.0, 2.0, 1.0]);
         assert!(close(points[4][2], 1.3));
         assert!(close(points[0][2], 0.0));
+    }
+
+    /// A column: shin (root, head on the floor) and thigh (head at the knee, 0.5),
+    /// each owning one vertex at its top. Neither inherits the other's scale.
+    fn column() -> Rig {
+        Rig {
+            parents: vec![-1, 0],
+            heads: vec![[0.0, 0.0, 0.0], [0.0, 0.5, 0.0]],
+            inherit_scale: vec![true, false],
+            positions: vec![[0.0, 0.5, 0.0], [0.0, 0.9, 0.0], [0.1, 0.9, 0.0]],
+            skin_bones: vec![[0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]],
+            skin_weights: vec![[1.0, 0.0, 0.0, 0.0]; 3],
+            morphs: vec![],
+            channels: vec![
+                Channel::BoneScale { control: 0, bone: 0, axis: 1, gain: 1.0 },
+                Channel::BoneScale { control: 0, bone: 0, axis: 0, gain: 1.0 },
+                Channel::BoneScale { control: 1, bone: 1, axis: 1, gain: 1.0 },
+            ],
+            control_bounds: vec![[0.5, 2.0], [0.5, 2.0]],
+            groups: vec![vec![1], vec![1, 2]],
+            measures: vec![Measure::Max { group: 0, axis: 1 }, Measure::Extent { group: 1, axis: 0 }],
+            hull_group: 1,
+        }
+    }
+
+    #[test]
+    fn non_inheriting_bones_move_without_stretching() {
+        let rig = column();
+        rig.validate().unwrap();
+        // Doubling the shin lifts the knee to 1.0; the thigh keeps its 0.4 length and width.
+        let points = rig.deform(&[2.0, 1.0]);
+        assert!(close(points[0][1], 1.0));
+        assert!(close(points[1][1], 1.4));
+        assert!(close(points[2][0] - points[1][0], 0.1), "the thigh does not inherit the shin's width");
+        // three.js needs the thigh's local scale to divide out the shin's.
+        let pose = rig.pose(&[2.0, 1.5]);
+        assert_eq!(pose.world_scales[1], [1.0, 1.5, 1.0]);
+        assert_eq!(pose.bone_scales[1], [0.5, 0.75, 1.0]);
     }
 
     #[test]

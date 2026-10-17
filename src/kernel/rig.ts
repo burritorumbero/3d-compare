@@ -7,7 +7,12 @@
  * - Deform bones have an identity rest rotation, so a bone scale is an
  *   axis-aligned scale about the bone head. In three.js, `bone.scale` on such a
  *   bone produces exactly the deformation the kernel computes.
- * - Bone heads sit on the floor (y = 0) so vertical scaling keeps soles down.
+ * - A bone inherits its parent's scale unless `inheritScale` is false; then it
+ *   moves with its parent but keeps only its own scale (a longer shin lifts the
+ *   thigh without stretching it). The kernel's pose gives three.js the local
+ *   scale that reproduces this.
+ * - Scaling never lifts soles: feet rigs put bone heads on the floor, and body
+ *   rigs chain upward from a root on the floor.
  * - `vertices` is a sample of the mesh: every vertex a measure or the hull uses.
  *   `source` maps each back to its index in the GLB mesh.
  * - Units are the GLB's: meters. Controls are factors with a rest value of 1.
@@ -26,7 +31,13 @@ export type RigFile = {
   version: 1
   /** The GLB mesh this rig deforms. */
   mesh: string
-  bones: readonly { name: string; parent: string | null; head: readonly [number, number, number] }[]
+  bones: readonly {
+    name: string
+    parent: string | null
+    head: readonly [number, number, number]
+    /** Defaults to true. */
+    inheritScale?: boolean
+  }[]
   vertices: {
     source: readonly number[]
     /** x, y, z per vertex. */
@@ -48,6 +59,8 @@ export type RigFile = {
 export type EncodedRig = {
   parents: Int32Array
   heads: Float64Array
+  /** 1 when the bone inherits its parent's scale. */
+  inheritScale: Uint8Array
   positions: Float64Array
   skinBones: Uint32Array
   skinWeights: Float64Array
@@ -115,6 +128,7 @@ export function encodeRig(rig: RigFile): EncodedRig {
       bone.parent === null ? -1 : lookup(boneNames, bone.parent, 'parent bone'),
     ),
     heads: Float64Array.from(rig.bones.flatMap((bone) => bone.head)),
+    inheritScale: Uint8Array.from(rig.bones, (bone) => (bone.inheritScale === false ? 0 : 1)),
     positions: Float64Array.from(rig.vertices.positions),
     skinBones: Uint32Array.from(rig.vertices.skinBones),
     skinWeights: Float64Array.from(rig.vertices.skinWeights),

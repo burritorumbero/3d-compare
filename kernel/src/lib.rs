@@ -28,6 +28,7 @@ fn index(value: f64, what: &str) -> Result<usize, RigError> {
 pub fn decode_rig(
     parents: &[i32],
     heads: &[f64],
+    inherit_scale: &[u8],
     positions: &[f64],
     skin_bones: &[u32],
     skin_weights: &[f64],
@@ -103,6 +104,7 @@ pub fn decode_rig(
     let rig = Rig {
         parents: parents.to_vec(),
         heads: triples(heads, "Bone heads")?,
+        inherit_scale: inherit_scale.iter().map(|&flag| flag != 0).collect(),
         positions,
         skin_bones: skin_bones.chunks_exact(4).map(|s| [s[0] as usize, s[1] as usize, s[2] as usize, s[3] as usize]).collect(),
         skin_weights: skin_weights.chunks_exact(4).map(|w| [w[0], w[1], w[2], w[3]]).collect(),
@@ -133,6 +135,7 @@ impl Kernel {
     pub fn new(
         parents: &[i32],
         heads: &[f64],
+        inherit_scale: &[u8],
         positions: &[f64],
         skin_bones: &[u32],
         skin_weights: &[f64],
@@ -146,7 +149,7 @@ impl Kernel {
         hull_group: u32,
     ) -> Result<Kernel, JsError> {
         decode_rig(
-            parents, heads, positions, skin_bones, skin_weights, morph_count, morph_deltas, channels, control_bounds,
+            parents, heads, inherit_scale, positions, skin_bones, skin_weights, morph_count, morph_deltas, channels, control_bounds,
             group_offsets, group_members, measures, hull_group,
         )
         .map(|rig| Kernel { rig })
@@ -171,7 +174,7 @@ impl Kernel {
         }
     }
 
-    /// Bone scales (x, y, z per bone) followed by morph weights.
+    /// Local bone scales for three.js (x, y, z per bone) followed by morph weights.
     pub fn pose(&self, controls: &[f64]) -> Result<Vec<f64>, JsError> {
         self.check_controls(controls)?;
         let pose = self.rig.pose(controls);
@@ -215,6 +218,7 @@ mod tests {
         let rig = decode_rig(
             &[-1],
             &[0.0, 0.0, 0.0],
+            &[1],
             &[0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
             &[0, 0, 0, 0, 0, 0, 0, 0],
             &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
@@ -233,7 +237,7 @@ mod tests {
 
     #[test]
     fn rejects_ragged_arrays() {
-        let result = decode_rig(&[-1], &[0.0, 0.0, 0.0], &[0.0, 0.0], &[], &[], 0, &[], &[], &[], &[0], &[], &[], 0);
+        let result = decode_rig(&[-1], &[0.0, 0.0, 0.0], &[1], &[0.0, 0.0], &[], &[], 0, &[], &[], &[], &[0], &[], &[], 0);
         assert!(result.is_err());
     }
 }

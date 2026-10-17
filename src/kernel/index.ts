@@ -20,7 +20,7 @@ export type Bounds = {
 }
 
 export type RigPose = {
-  /** x, y, z scale per bone, in rig bone order. */
+  /** Local x, y, z scale per bone in rig order: set as `bone.scale` in three.js. */
   boneScales: readonly (readonly [number, number, number])[]
   morphWeights: readonly number[]
 }
@@ -62,6 +62,7 @@ export class RigSolver {
     this.kernel = new Kernel(
       encoded.parents,
       encoded.heads,
+      encoded.inheritScale,
       encoded.positions,
       encoded.skinBones,
       encoded.skinWeights,
