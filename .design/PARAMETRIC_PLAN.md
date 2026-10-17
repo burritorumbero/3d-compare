@@ -1,6 +1,6 @@
 # Parametric sizing: assessment and work plan
 
-Status, 2026-10-17: Phases 1–3 are done, and Phase 0 is partly done. See the checkboxes below.
+Status, 2026-10-17: Phases 1–4 are done, and Phase 0 is partly done. See the checkboxes below.
 
 ## Goal
 
@@ -117,7 +117,7 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
 - [x] `CompareDocument` v2 with a v1→v2 migration. Old saves become average feet of the saved length.
 - [x] Share codec: `f=foot-male:281:t81:w110` (locked dimensions only). Old untagged links still decode.
 - [x] Inspector: a slider and mm field per dimension, an Average/Reset state, and hints when a value is outside the 1st–99th percentile. The lineup tags custom shapes.
-- [x] Interim rendering until the rig lands: per-axis scale relative to the typical shape (`footAxisScale` in `scene/draw.ts`). Toes show only through total length.
+- [x] Interim rendering until the rig landed: per-axis scale relative to the typical shape. Phase 4 replaced it with kernel-driven skinning.
 - [x] Heights up to 10 ft. The lineup is spaced by scaled footprints (`humanLineupX`). The camera framing accounts for the stage aspect ratio and the tallest person. A 320 cm ruler and a wider floor were added.
 - [x] Tests: `verify-domain` (shapes, locks, constraints, migration, links, 10 ft heights, no lineup overlap), `verify-models` (footprint widths), `verify-ui` (toe edit, rejected width, 304.8 cm limit, share link).
 
@@ -156,12 +156,27 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
 
 ### Phase 4: feet runtime and UI
 
-- [ ] `models.ts`: `SkeletonUtils.clone`, plus meshopt and KTX2 decoders.
-- [ ] `draw.ts`: `FootDraw.scale` becomes `FootDraw.solve` (the kernel output). `figures.tsx` applies bone scales and morph influences. The hit box, ring, label and shadow come from the kernel bounds. `narrowStance` moves to the `shin` root bones.
-- [ ] Inspector: the shoe size select stays. Add four slider + number fields (mm or in, following the height unit), a lock per parameter, "Reset to typical", and a percentile hint against ANSUR. Slider drags solve live and commit on release so persistence isn't hit on every frame.
-- [ ] The lineup row and label show size plus non-default parameters, for example `US 10 · wide · high instep`.
-- [ ] `verify-ui.mjs`: drag sliders, check the label and measured values, reload persistence, round-trip a share link.
-- [ ] Performance: 10 pairs with one slider dragging at 60 fps on the dev laptop.
+- [x] `src/scene/feet/rigged-foot.ts` (pure three.js):
+  - `rigFoot` rebuilds the rig's bones (identity rest rotation, heads from the rig file);
+  - it adds `skinIndex`/`skinWeight` from `_deform_weights` once per shared geometry;
+  - it binds a `SkinnedMesh` per material primitive under a movable root;
+  - `poseFoot` sets the kernel's bone scales.
+  - Cloning isn't needed: each placement builds its own bones and shares geometry and materials.
+- [x] `src/scene/feet/foot-rigs.ts`: a Suspense cache that loads the kernel and the pair's `*.rig.json` once per model. The feet catalog preloads them on hover with the GLB.
+- [x] `figures.tsx`:
+  - each placement solves its `FootShape` on the left rig and mirrors the controls to the right;
+  - solves warm-start from the placement's last controls;
+  - ring, hit box, label and shadow come from the solved bounds;
+  - the stance narrowing moves the foot roots.
+  - The interim per-axis scale (`footAxisScale`) is gone.
+- [x] The inspector controls, locks, reset, percentile hints and lineup tag shipped in Phase 1. Slider ticks commit directly: a solve costs about 0.5 ms and only the edited placement re-solves.
+- [x] `verify-kernel` now drives the app's `rigFoot`/`poseFoot` through three's `SkinnedMesh.applyBoneTransform`, with the root moved off-origin, and requires the kernel's measurements within 0.1 mm.
+- [x] `verify-ui` exercises the full path: feet labels only mount after the GLB, the rig, the kernel and the solve, and any console or page error fails the run.
+- [x] The production build serves `kernel_bg-*.wasm` as `application/wasm` and the rig files as JSON. Rigged feet render from `vite preview` with no errors.
+- [x] Visual check at the extremes (280 mm with long toes and a wide forefoot; 230 mm with short toes, narrow and flat; a high instep): no tearing, nails only slightly stretched, shin unchanged. Corrective shape keys aren't needed for now.
+- Deferred:
+  - inch display for the shape fields (they stay in mm alongside shoe charts);
+  - a frame-rate measurement on real GPU hardware (headless runs use software WebGL).
 
 ### Phase 5: humans
 
