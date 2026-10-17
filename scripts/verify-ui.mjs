@@ -96,6 +96,29 @@ try {
   await page.evaluate(() => localStorage.clear())
   await page.reload({ waitUntil: 'networkidle' })
   await page.locator('.scene-empty').waitFor({ state: 'visible', timeout: 20_000 })
+
+  // The parametric kernel loads in the browser through Vite and solves a rig.
+  const kernelCheck = await page.evaluate(async () => {
+    const { loadBrowserKernel } = await import('/src/kernel/browser.ts')
+    const { RigSolver } = await import('/src/kernel/index.ts')
+    await loadBrowserKernel()
+    const solver = new RigSolver({
+      version: 1,
+      mesh: 'bar',
+      bones: [{ name: 'root', parent: null, head: [0, 0, 0] }],
+      vertices: { source: [0, 1], positions: [0, 0, 0, 0, 0, 0.25], skinBones: [0, 0, 0, 0, 0, 0, 0, 0], skinWeights: [1, 0, 0, 0, 1, 0, 0, 0] },
+      morphs: [],
+      controls: [{ name: 'length', min: 0.5, max: 2, channels: [{ bone: 'root', axis: 'z', gain: 1 }] }],
+      groups: { all: [0, 1] },
+      measures: [{ name: 'length', kind: 'extent', group: 'all', axis: 'z' }],
+      hull: 'all',
+    })
+    const solution = solver.solve({ length: 0.3 })
+    solver.dispose()
+    return solution
+  })
+  assert.ok(Math.abs(kernelCheck.measures.length - 0.3) < 0.0001, `the kernel solves in the browser: ${JSON.stringify(kernelCheck)}`)
+  assert.ok(Math.abs(kernelCheck.controls.length - 1.2) < 0.0005)
   assert.equal(await page.locator('#compare-stage canvas').count(), 1)
   assert.match(await page.locator('.stage-title strong').innerText(), /Concrete studio/)
   // Height mode only orbits: no navigation toggle, and the hint invites a tap.
