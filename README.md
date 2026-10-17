@@ -39,6 +39,8 @@ Drag to orbit, scroll to zoom, and right-drag to pan.
 
 Place pairs of female and male feet, cut at mid-shin, on a centimeter table. Choose an adult US or EU shoe size: US women's 4 to 20, US men's 4 to 22, or EU 34 to 58. 3D Compare maps the size to foot length.
 
+Select a pair, then choose **White**, **Black**, **Hispanic**, or **Asian** under **Skin tone**. Each pair keeps its own choice, applied to both feet and lower legs. Previews match the selected tone; texture detail, toenails, measurements and shape stay intact. Colors persist across reloads and in shared lineups. Older saves keep their original appearance.
+
 Each pair also has three shape dimensions in millimeters: **toe length**, **foot width** (across the ball of the foot), and **foot thickness** (instep height at mid-foot). Until you set one, it follows the adult average for the foot length, from the ANSUR II survey. Setting one locks it, so it keeps its value when the shoe size changes; **Reset** returns it to the average. Toe length is part of foot length, so longer toes make a longer foot and a larger shoe size. Values outside the 1st to 99th percentile of adults are flagged.
 
 Use **Orbit** to rotate around the table. Use **Inspect** for table-plane panning and close zoom.
@@ -49,7 +51,7 @@ Tap or click a model to show its info block; only the selected model shows one. 
 
 ### Share links
 
-A share link carries the scene in its query string, for example `?mode=height&unit=cm&shoe=US&h=female-tan-dress:1700:Ari&f=foot-male:281:t81:w110`. Feet list their foot length and then each locked dimension in millimeters (`t` toe length, `w` foot width, `i` foot thickness). Opening one replaces the saved workspace with the shared lineup and then clears the query from the address bar.
+A share link carries the scene in its query string, for example `?mode=height&unit=cm&shoe=US&h=female-tan-dress:1700:Ari&f=foot-male:281:sblack:t81:w110`. Feet list their foot length, an optional skin-tone tag (`swhite`, `sblack`, `shispanic`, `sasian`), and each locked dimension in millimeters (`t` toe length, `w` foot width, `i` foot thickness). Default tones are omitted for compact, backward-compatible links. Opening one replaces the saved workspace with the shared lineup and then clears the query from the address bar.
 
 ## 3D models
 
@@ -110,7 +112,7 @@ npm run verify:rendering
 
 The script launches the system Google Chrome through Playwright on macOS, Windows, and Linux. Point `CHROME_BIN` at a Chrome or Chromium binary to use a different browser build. Screenshots land in `/tmp/3d-compare-verification`.
 
-`verify:rendering` also works against the production preview: run `npm run preview -- --port 43124`, then `APP_URL=http://127.0.0.1:43124 npm run verify:rendering`. It captures the six people at normal height and 10 ft, both US 20 pairs, a small female pair, and EU 58 male feet. Captures go to `/tmp/3d-compare-rendering` (override with `ARTIFACT_DIR`).
+`verify:rendering` also works against the production preview: run `npm run preview -- --port 43124`, then `APP_URL=http://127.0.0.1:43124 npm run verify:rendering`. It captures the six people at normal height and 10 ft, both US 20 pairs, a small female pair, EU 58 male feet, and all four skin tones on each foot model. Captures go to `/tmp/3d-compare-rendering` (override with `ARTIFACT_DIR`).
 
 ## Workspace controls
 
