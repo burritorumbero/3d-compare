@@ -52,9 +52,9 @@ const CONTROLS = [
   ['crotch', channel(both('thigh'), 'y')],
   ['shoulder', channel(['pelvis'], 'y')],
   ['neck', channel(['chest'], 'y')],
-  ['ear', channel(['neck'], 'y')],
+  ['ear', channel(['neck'], 'xyz')],
   ['stature', channel(['head'], 'xyz')],
-  ['biacromialBreadth', channel(['chest', 'neck'], 'xz')],
+  ['biacromialBreadth', channel(['chest'], 'xz')],
   ['hipBreadth', channel(['pelvis', ...both('thigh'), ...both('shin')], 'xz')],
   ['armLength', channel(both('arm'), 'xyz')],
 ]

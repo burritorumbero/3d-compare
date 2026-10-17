@@ -73,10 +73,10 @@ export function averageLandmarks(sex: Sex, statureMm: number): BodyLandmarks {
 }
 
 /**
- * Where a specific person's landmarks go at a new stature. Each landmark of the
- * authored model scales by how much the adult average for that landmark changes
- * between the model's stature and the new one, so the person keeps their own
- * proportions and stature lands exactly on the target.
+ * Keep the authored head and neck proportional to stature. Scaling the upper
+ * landmarks together also leaves room for the neck above the shoulders; using
+ * the extrapolated adult ear height alone makes heads disproportionately small on very tall figures.
+ * Legs, arm length and body breadths retain the adult allometric adjustments.
  */
 export function statureTargets(sex: Sex, authored: BodyLandmarks, statureMm: number): BodyLandmarks {
   const from = averageLandmarks(sex, authored.stature)
@@ -85,5 +85,10 @@ export function statureTargets(sex: Sex, authored: BodyLandmarks, statureMm: num
   for (const landmark of BODY_LANDMARKS) {
     targets[landmark] = authored[landmark] * (to[landmark] / from[landmark])
   }
+  const growth = statureMm / authored.stature
+  for (const landmark of ['shoulder', 'neck', 'ear'] as const) {
+    targets[landmark] = authored[landmark] * growth
+  }
+  targets.stature = statureMm
   return targets
 }

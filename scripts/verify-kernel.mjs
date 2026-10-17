@@ -15,6 +15,7 @@ import { shoeRows } from '../src/domain/shoe-charts.ts'
 import { averageLandmarks, statureTargets } from '../src/domain/stature.ts'
 import { assertFootRig, footRigTargets, solveFoot } from '../src/kernel/foot.ts'
 import { feetRigFile } from './foot-rig.mjs'
+import { personRigFile } from './person-rig.mjs'
 import { RigSolver, loadKernel } from '../src/kernel/index.ts'
 import { applyPose, rigNode } from '../src/scene/rigged.ts'
 import { meshAttribute, meshPositions, readGlb } from './glb.mjs'
@@ -332,6 +333,7 @@ for (const entry of HUMAN_CATALOG) {
   assert.equal(rigFile.version, 1)
   assert.equal(rigFile.rigs.length, 1)
   const rig = rigFile.rigs[0]
+  assert.deepEqual(rigFile, JSON.parse(JSON.stringify(personRigFile(model))), `${entry.id}: shipped rig matches the generator`)
   const meshCache = new Map()
   const meshData = (name) => {
     if (!meshCache.has(name)) {
@@ -363,29 +365,59 @@ for (const entry of HUMAN_CATALOG) {
     assert.ok(Math.abs(solution.measures.stature * 1000 - stature) < MAX_ERROR_MM, `${entry.id} at ${stature} mm: stature lands exactly`)
   }
 
-  // The app path: skin the body with rigNode at 10 ft and measure its landmarks.
-  const body = meshData('Body')
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(body.positions.flat(), 3))
-  geometry.setAttribute('_skin_index', new THREE.Float32BufferAttribute(body.indices.flat(), 4))
-  geometry.setAttribute('_skin_weight', new THREE.Float32BufferAttribute(body.weights.flat(), 4))
-  const node = new THREE.Mesh(geometry)
-  node.name = 'Body'
-  const person = rigNode(node, rig)
-  const tall = statureTargets(entry.sex, authored, 3048)
-  const solution = solver.solve(Object.fromEntries(Object.entries(tall).map(([name, mm]) => [name, mm / 1000])))
-  applyPose(person, solver.pose(solution.controls))
-  person.root.updateMatrixWorld(true)
-  const [skinned] = person.meshes
-  const points = rig.vertices.source.map((source, local) =>
-    rig.vertices.sourceMeshes[local] === 'Body'
-      ? skinned.applyBoneTransform(source, new THREE.Vector3().fromBufferAttribute(geometry.getAttribute('position'), source))
-      : new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN),
-  )
-  const app = measureWithThree(rig, points)
-  for (const [name, target] of Object.entries(tall)) {
-    assert.ok(Math.abs(app[name] * 1000 - target) < MAX_ERROR_MM, `${entry.id}: the app's skinned body puts ${name} at ${(app[name] * 1000).toFixed(2)} mm, wanted ${target.toFixed(2)} mm`)
+  // Exercise real body, eyes, hair and clothing through the app's skinning at
+  // both extremes and at rest. Head-attached geometry must grow in all axes,
+  // not merely move upward with the neck while retaining its original size.
+  const source = new THREE.Group()
+  for (const name of model.meshNames) {
+    const data = meshData(name)
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions.flat(), 3))
+    geometry.setAttribute('_skin_index', new THREE.Float32BufferAttribute(data.indices.flat(), 4))
+    geometry.setAttribute('_skin_weight', new THREE.Float32BufferAttribute(data.weights.flat(), 4))
+    const node = new THREE.Mesh(geometry)
+    node.name = name
+    source.add(node)
   }
+  const person = rigNode(source, rig)
+  const body = person.meshes.find((mesh) => mesh.name === 'Body')
+  const headBone = rig.bones.findIndex((bone) => bone.name === 'head')
+  const samples = person.meshes.map((mesh) => {
+    const positions = mesh.geometry.getAttribute('position')
+    const indices = mesh.geometry.getAttribute('skinIndex')
+    const weights = mesh.geometry.getAttribute('skinWeight')
+    const vertices = []
+    for (let vertex = 0; vertex < positions.count; vertex += 1) {
+      if (indices.getX(vertex) === headBone && weights.getX(vertex) > .9999) vertices.push(vertex)
+    }
+    const bounds = new THREE.Box3().setFromPoints(vertices.map((vertex) => new THREE.Vector3().fromBufferAttribute(positions, vertex)))
+    return { mesh, vertices, restSize: bounds.getSize(new THREE.Vector3()) }
+  }).filter((sample) => sample.vertices.length > 10)
+  assert.ok(samples.length >= 3, `${entry.id}: body and head attachments are covered`)
+  for (const height of [900, authored.stature, 3048]) {
+    const targets = statureTargets(entry.sex, authored, height)
+    const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])))
+    applyPose(person, solver.pose(solution.controls))
+    person.root.updateMatrixWorld(true)
+    const points = rig.vertices.source.map((vertex, local) => rig.vertices.sourceMeshes[local] === 'Body'
+      ? body.applyBoneTransform(vertex, new THREE.Vector3().fromBufferAttribute(body.geometry.getAttribute('position'), vertex))
+      : new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN))
+    const actual = measureWithThree(rig, points)
+    for (const [name, target] of Object.entries(targets)) {
+      assert.ok(Math.abs(actual[name] * 1000 - target) < MAX_ERROR_MM, `${entry.id} at ${height}: app ${name} matches target`)
+    }
+    const growth = height / authored.stature
+    for (const { mesh, vertices, restSize } of samples) {
+      const bounds = new THREE.Box3().setFromPoints(vertices.map((vertex) => mesh.applyBoneTransform(vertex, new THREE.Vector3().fromBufferAttribute(mesh.geometry.getAttribute('position'), vertex))))
+      const size = bounds.getSize(new THREE.Vector3())
+      for (const axis of ['x', 'y', 'z']) assert.ok(Math.abs(size[axis] - restSize[axis] * growth) < .0001, `${entry.id} ${mesh.name}: head ${axis} grows with stature at ${height}`)
+    }
+    for (const name of ['neck', 'head']) {
+      const scale = person.bones[rig.bones.findIndex((bone) => bone.name === name)].getWorldScale(new THREE.Vector3())
+      for (const axis of ['x', 'y', 'z']) assert.ok(Math.abs(scale[axis] - growth) < .001, `${entry.id}: ${name} scales proportionally in ${axis}`)
+    }
+  }
+  for (const mesh of person.meshes) mesh.geometry.dispose()
   solver.dispose()
 }
 
@@ -393,5 +425,5 @@ console.log(
   `Kernel verification passed: shipped rigs match their GLBs, ${solves} foot solves (left and right agree), worst error ${worst.toFixed(4)} mm, ` +
     `${(elapsed / solves).toFixed(2)} ms per solve, the app's three.js skinning agrees; ` +
     `${bodySolves} body-column stature solves (0.9 to 3.05 m), worst error ${bodyWorst.toFixed(4)} mm, three.js bones agree; ` +
-    `${peopleSolves} solves on the shipped people, worst error ${peopleWorst.toFixed(4)} mm, the app's skinning agrees at 10 ft.`,
+    `${peopleSolves} solves on the shipped people, worst error ${peopleWorst.toFixed(4)} mm, the app's body, head and attachments agree at minimum, authored height and 10 ft.`,
 )
