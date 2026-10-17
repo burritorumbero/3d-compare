@@ -33,3 +33,9 @@ src/kernel/pkg
 
 # Transient texture crops written during npm run assets:feet
 public/models/.*-textures
+
+# Intermediate person builds
+tools/assets/.work
+
+# Python bytecode from the Blender asset scripts
+__pycache__/
