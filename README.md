@@ -53,7 +53,15 @@ A share link carries the scene in its query string, for example `?mode=height&un
 
 ## 3D models
 
-The eight models in `public/models` are CC0 glTF binaries adapted from MakeHuman Community assets. `public/models/ASSET_LICENSES.md` records the provenance and `public/models/manifest.json` describes each file. They are static meshes in meters, Y up, facing +Z, with embedded textures, and they total about 34 MB on disk.
+The models in `public/models` are glTF binaries in meters, Y up, facing +Z, with embedded textures.
+
+- **People.** The six people are CC0 static meshes adapted from MakeHuman Community assets.
+- **Feet.** The two pairs of feet are built from the Daz 3D Genesis 9 characters Laura and Matt. Each foot carries `_DEFORM_WEIGHTS` (shin, foot and toes, derived from Genesis 9's bone weights), and a `*.rig.json` ships next to each pair for the parametric kernel.
+- **Records.** `public/models/ASSET_LICENSES.md` records provenance and licensing, and `public/models/manifest.json` describes each file.
+
+### Rebuilding the feet
+
+`npm run assets:feet` rebuilds the feet from a local Daz library. It needs Blender 4.2 or newer with the Diffeomorphic DAZ importer. Set `BLENDER_BIN` and `DAZ_LIBRARY` if they aren't at the macOS defaults. The script runs `tools/assets/build_feet.py` headless, then writes the rig files.
 
 Scale is exact by construction. Each human is scaled uniformly from the stature of its authored mesh, measured from sole to skull top with hair excluded. Each pair of feet is scaled by the heel-to-toe length of its sole, and width and thickness then stretch their axis by how far they sit from average. Rigged, parametric replacements for these models are planned in `.design/PARAMETRIC_PLAN.md`. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
 

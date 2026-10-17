@@ -89,3 +89,13 @@ This is Phase 2 of `.design/PARAMETRIC_PLAN.md`.
 - **Using it.** Rigs are described by `*.rig.json` (`src/kernel/rig.ts`). `src/kernel/index.ts` loads the kernel and exposes `RigSolver`, and `src/kernel/foot.ts` maps a `FootShape` onto foot rig measures.
 - **Not wired into the app yet.** The scene starts using it when rigged models land in Phases 3 and 4.
 - **Checks.** `npm run verify:kernel` proves 0.1 mm accuracy over the foot-shape grid on procedural rigs of the shipped feet, and checks that three.js skinning matches. verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.
+
+## Follow-up: Genesis 9 feet (2026-10-17)
+
+This is Phase 3 of `.design/PARAMETRIC_PLAN.md`.
+
+- **New feet.** Both pairs are rebuilt from Daz Genesis 9 (Laura, Matt) by `npm run assets:feet`: realistic toes and nails, plus normal and roughness maps.
+- **Rigging.** Each foot carries shin/foot/toes deform weights, and a generated `*.rig.json` ships beside each GLB.
+- **Catalog.** Reference sole lengths are now 226 mm (female) and 248 mm (male).
+- **Rendering.** The app still renders feet with the interim per-axis scale. Skinning through the kernel is Phase 4.
+- **Checks.** verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.

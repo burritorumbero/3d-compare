@@ -22,7 +22,8 @@
     "verify:kernel": "cd kernel && cargo test --quiet && cd .. && node --experimental-strip-types scripts/verify-kernel.mjs",
     "verify:rendering": "node scripts/verify-rendering.mjs",
     "verify:ui": "node scripts/verify-ui.mjs",
-    "build:kernel": "node scripts/build-kernel.mjs"
+    "build:kernel": "node scripts/build-kernel.mjs",
+    "assets:feet": "node scripts/build-feet-assets.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

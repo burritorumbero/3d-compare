@@ -42,8 +42,11 @@ export type FootShapeResult =
     }
 
 /**
- * Instep height has no ANSUR II measurement. This ratio is a provisional adult
- * average to calibrate against the rigged base mesh; it is not survey data.
+ * Instep height has no ANSUR II measurement. Standing dorsum height at 50% of
+ * foot length averages 65.3 mm on a 259.5 mm mean foot length (ratio 0.252):
+ * Int. J. Environ. Res. Public Health 2020, 17(4):1274, Table 2 (PMC7068515). Sculpted
+ * models run higher (Genesis 9 and MakeHuman feet measure about 0.29), so the rig
+ * lowers their arch toward this average.
  */
 const INSTEP_RATIO = 0.25
 
