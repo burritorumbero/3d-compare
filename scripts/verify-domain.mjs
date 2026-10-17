@@ -25,6 +25,7 @@ import {
 } from '../src/domain/measure.ts'
 import { parseShoeSpec } from '../src/domain/shoe-charts.ts'
 import { humanLineupX } from '../src/scene/draw.ts'
+import { BODY_LANDMARKS, LANDMARK_HEIGHT_ORDER, averageLandmarks, statureTargets } from '../src/domain/stature.ts'
 
 assert.equal(HUMAN_CATALOG.length, 6)
 assert.equal(new Set(HUMAN_CATALOG.map((entry) => entry.id)).size, 6)
@@ -250,4 +251,34 @@ for (let index = 1; index < spans.length; index += 1) {
 }
 assert.equal(giantLineup.get(giants.getState().height.placements[0].id), 0, 'the first person stands at the center')
 
-console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, foot shapes, persistence with migration, and share links.')
+// Stature allometry: landmarks stay in anatomical order from 0.9 to 3.05 m, the
+// head shrinks and the legs lengthen relative to stature as people get taller,
+// and a person's own proportions carry over while stature lands exactly.
+for (const sex of ['female', 'male']) {
+  let previous = null
+  for (let stature = 900; stature <= 3048; stature += 37) {
+    const average = averageLandmarks(sex, stature)
+    for (let index = 1; index < LANDMARK_HEIGHT_ORDER.length; index += 1) {
+      assert.ok(
+        average[LANDMARK_HEIGHT_ORDER[index]] > average[LANDMARK_HEIGHT_ORDER[index - 1]],
+        `${sex} ${stature} mm: ${LANDMARK_HEIGHT_ORDER[index]} sits above ${LANDMARK_HEIGHT_ORDER[index - 1]}`,
+      )
+    }
+    if (previous) {
+      for (const landmark of BODY_LANDMARKS) {
+        assert.ok(average[landmark] > previous[landmark], `${sex}: ${landmark} grows with stature`)
+      }
+      assert.ok((stature - average.ear) / stature < (previous.stature - previous.ear) / previous.stature, `${sex}: head shrinks relative to stature`)
+      assert.ok(average.crotch / stature > previous.crotch / previous.stature, `${sex}: legs lengthen relative to stature`)
+    }
+    previous = average
+  }
+  const authored = { ...averageLandmarks(sex, 1700), knee: averageLandmarks(sex, 1700).knee * 1.04 }
+  assert.deepEqual(statureTargets(sex, authored, 1700), authored, 'targets at the authored stature are the authored landmarks')
+  const tall = statureTargets(sex, authored, 3048)
+  assert.ok(Math.abs(tall.stature - 3048) < 1e-9, 'stature lands exactly')
+  const tallAverage = averageLandmarks(sex, 3048)
+  assert.ok(Math.abs(tall.knee / tallAverage.knee - 1.04) < 1e-9, 'a long-shinned person stays long-shinned')
+}
+
+console.log('Domain verification passed: units, charts, cap, dual worlds, names, updates, foot shapes, stature allometry, persistence with migration, and share links.')
