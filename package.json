@@ -27,6 +27,7 @@
     "verify:budgets": "node --experimental-strip-types scripts/verify-budgets.mjs",
     "build:kernel": "node scripts/build-kernel.mjs",
     "assets:feet": "node scripts/build-feet-assets.mjs",
+    "assets:previews": "node --experimental-strip-types scripts/build-model-previews.mjs",
     "assets:people": "node scripts/build-people-assets.mjs"
   },
   "dependencies": {

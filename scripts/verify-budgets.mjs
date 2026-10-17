@@ -42,12 +42,14 @@ for (const entry of [...HUMAN_CATALOG, ...FEET_CATALOG]) {
     file,
     glbBytes: statSync(path).size,
     rigBytes: statSync(path.replace(/\.glb$/, '.rig.json')).size,
+    previewBytes: statSync(`${root}dist/previews/${file.replace(/\.glb$/, '.webp')}`).size,
     triangles: primitives.reduce((sum, primitive) => sum + (primitive.getIndices()?.getCount() ?? 0) / 3, 0),
     drawCalls: primitives.length,
     textures: model.listTextures().length,
     textureBytes: model.listTextures().reduce((sum, texture) => sum + textureBytes(texture), 0),
   }
   budget(stats.glbBytes, isFoot ? 2_500_000 : 6_000_000, `${file} download`)
+  budget(stats.previewBytes, 30_000, `${file} preview`)
   budget(stats.rigBytes, 1_000_000, `${file} rig`)
   budget(stats.triangles, isFoot ? 43_000 : 230_000, `${file} triangles`)
   budget(stats.drawCalls, isFoot ? 4 : 35, `${file} draw calls`)
@@ -67,6 +69,7 @@ const totals = {
   javascriptBytes: sum(javascript, 'bytes'),
   javascriptGzipBytes: sum(javascript, 'gzipBytes'),
   allModelBytes: sum(models, 'glbBytes'),
+  allPreviewBytes: sum(models, 'previewBytes'),
   allTextureBytes: sum(models, 'textureBytes'),
   maxHeightTriangles: Math.max(...models.slice(0, HUMAN_CATALOG.length).map((model) => model.triangles)) * HEIGHT_CAP,
   maxHeightDrawCalls: Math.max(...models.slice(0, HUMAN_CATALOG.length).map((model) => model.drawCalls)) * HEIGHT_CAP,
@@ -75,6 +78,7 @@ const totals = {
 for (const asset of javascript) budget(asset.bytes, 750_000, `${asset.file} chunk`)
 budget(totals.javascriptBytes, 1_300_000, 'total JavaScript')
 budget(totals.javascriptGzipBytes, 360_000, 'total JavaScript gzip')
+budget(totals.allPreviewBytes, 150_000, 'all model previews')
 budget(wasm[0].bytes, 90_000, 'WASM')
 budget(wasm[0].gzipBytes, 35_000, 'WASM gzip')
 budget(totals.allTextureBytes, 768 * MiB, 'all eight assets texture memory')

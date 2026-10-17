@@ -3,17 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { CompareApp } from '../app/compare-app.ts'
 import { shareUrl } from '../app/share.ts'
 import { useCompare } from '../app/use-compare.ts'
-import { FEET_CATALOG } from '../catalog/feet.ts'
-import { HUMAN_CATALOG } from '../catalog/humans.ts'
 import { CompareCanvas } from '../scene/canvas.tsx'
 import { CatalogDrawer } from './catalog-drawer.tsx'
-import { FootIcon, PersonIcon, PlusIcon } from './icons.tsx'
+import { FootIcon, PersonIcon, PlusIcon, ShareIcon } from './icons.tsx'
 import { Inspector } from './inspector.tsx'
 import { ModeSwitch } from './mode-switch.tsx'
 import { NavToggles, ViewActions } from './nav-toggles.tsx'
 import { PlacementList } from './placement-list.tsx'
 import { SceneErrorBoundary } from './scene-error-boundary.tsx'
-import { UnitToggles } from './unit-toggles.tsx'
 import './app.css'
 
 /** 'native' uses the Fullscreen API; 'fallback' pins the stage over the page where that API is missing. */
@@ -22,14 +19,14 @@ type FullscreenState = 'off' | 'native' | 'fallback'
 export function App({ app }: { app: CompareApp }) {
   const document = useCompare(app)
   const [notice, setNotice] = useState('')
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<'lineup' | 'measurements'>('measurements')
   const [sceneReady, setSceneReady] = useState(false)
   const [fullscreen, setFullscreen] = useState<FullscreenState>('off')
   const stageRef = useRef<HTMLElement>(null)
   const loading = useProgress((state) => state.active)
   const activeCount =
-    document.mode === 'height'
-      ? document.height.placements.length
-      : document.feet.placements.length
+    document.mode === 'height' ? document.height.placements.length : document.feet.placements.length
 
   useEffect(() => {
     if (!notice) {
@@ -124,8 +121,7 @@ export function App({ app }: { app: CompareApp }) {
     }
   }
 
-  const sceneName = document.mode === 'height' ? 'Concrete studio' : 'Oak measure table'
-  const sceneCode = document.mode === 'height' ? 'ROOM 01' : 'TABLE 02'
+  const sceneName = document.mode === 'height' ? 'Height comparison' : 'Foot comparison'
   const hint =
     document.mode === 'feet' && document.feet.navMode === 'inspect'
       ? 'Tap a pair for details · Drag to pan · Scroll to zoom'
@@ -134,115 +130,117 @@ export function App({ app }: { app: CompareApp }) {
         : 'Tap a person for details · Drag to orbit · Scroll to zoom'
 
   return (
-    <div className={`compare-app mode-${document.mode}`}>
+    <div className={`compare-app mode-${document.mode} mobile-${mobilePanel}`}>
       <header className="app-header">
-        <div className="brand-block">
+        <a className="brand-block" href="#main-stage" aria-label="3D Compare, skip to stage">
           <span className="brand-mark" aria-hidden="true">
-            <span>3D</span>
+            3D
           </span>
           <div>
             <h1>3D Compare</h1>
-            <p>Scale, place, and see the difference.</p>
+            <p>A little perspective.</p>
           </div>
-        </div>
+        </a>
         <ModeSwitch app={app} document={document} />
-        <div className="header-meta">
-          <span className="status-dot" />
-          <span>Local workspace</span>
-          <small>No account needed</small>
+        <div className="header-actions">
+          <span className="local-status">
+            <span className="status-dot" />
+            Local workspace
+          </span>
+          <button
+            className="secondary-button share-button"
+            type="button"
+            onClick={() => void share()}
+            title="Share link"
+            aria-label="Share link"
+          >
+            <ShareIcon />
+            <span>Share lineup</span>
+          </button>
         </div>
       </header>
 
       <main className="workspace">
-        <CatalogDrawer app={app} document={document} announce={setNotice} />
-
+        <aside className="lineup-column" aria-label="Lineup controls">
+          <PlacementList
+            app={app}
+            document={document}
+            onAdd={() => setLibraryOpen(true)}
+            onSelect={() => setMobilePanel('measurements')}
+          />
+          <p className="sidebar-note">Both lineups stay here when you switch modes.</p>
+        </aside>
         <section
+          id="main-stage"
           ref={stageRef}
           className={fullscreen === 'off' ? 'stage-panel' : 'stage-panel is-fullscreen'}
           aria-label={`${sceneName} 3D stage`}
+          tabIndex={-1}
         >
           <div className="stage-toolbar">
             <div className="stage-title">
-              <span>{sceneCode}</span>
               <strong>{sceneName}</strong>
+              <span>
+                {activeCount}{' '}
+                {document.mode === 'height'
+                  ? activeCount === 1
+                    ? 'person'
+                    : 'people'
+                  : activeCount === 1
+                    ? 'pair'
+                    : 'pairs'}
+              </span>
             </div>
-            <div className="stage-controls">
-              {document.mode === 'feet' && (
-                <>
-                  <NavToggles app={app} document={document} />
-                  <span className="toolbar-divider" />
-                </>
-              )}
-              <UnitToggles app={app} document={document} />
-              <span className="toolbar-divider" />
-              <ViewActions
-                app={app}
-                fullscreen={fullscreen !== 'off'}
-                onShare={() => void share()}
-                onToggleFullscreen={() => void toggleFullscreen()}
-              />
-            </div>
+            <ViewActions
+              app={app}
+              fullscreen={fullscreen !== 'off'}
+              onToggleFullscreen={() => void toggleFullscreen()}
+            />
           </div>
-
           <div className="canvas-shell">
             <SceneErrorBoundary>
               <CompareCanvas app={app} document={document} onReady={() => setSceneReady(true)} />
             </SceneErrorBoundary>
-
             {!sceneReady && (
               <div className="scene-state scene-loading" role="status">
                 <span className="loading-cube" aria-hidden="true" />
-                <strong>Preparing the 3D stage</strong>
-                <p>Starting the renderer in your browser.</p>
+                <strong>Preparing your workspace</strong>
+                <p>Starting the 3D stage…</p>
               </div>
             )}
-
             {sceneReady && activeCount === 0 && (
               <div className="scene-empty">
                 <span className="empty-icon">
                   {document.mode === 'height' ? <PersonIcon /> : <FootIcon />}
                 </span>
-                <span className="eyebrow">
-                  {document.mode === 'height' ? 'Studio ready' : 'Table ready'}
-                </span>
+                <span className="eyebrow">See the difference</span>
                 <h2>
                   {document.mode === 'height'
-                    ? 'Build your first lineup'
-                    : 'Set down a pair of feet'}
+                    ? 'Put height in perspective.'
+                    : 'Find a new point of view.'}
                 </h2>
                 <p>
                   {document.mode === 'height'
-                    ? 'Add up to 10 people, then tune every height.'
-                    : 'Compare shoe sizes against a centimeter grid.'}
+                    ? 'Build a lineup and explore how people compare, from head to toe.'
+                    : 'Compare shoe sizes and fine-tune every pair on a measured grid.'}
                 </p>
                 <button
+                  className="primary-button"
                   type="button"
-                  onClick={() => {
-                    if (document.mode === 'height') {
-                      app.placeHuman(HUMAN_CATALOG[0].id)
-                    } else {
-                      app.placeFoot(FEET_CATALOG[0].id)
-                    }
-                  }}
+                  onClick={() => setLibraryOpen(true)}
                 >
                   <PlusIcon />
-                  {document.mode === 'height'
-                    ? `Add ${HUMAN_CATALOG[0].label}`
-                    : `Add ${FEET_CATALOG[0].label.toLowerCase()}`}
+                  {document.mode === 'height' ? 'Choose a person' : 'Choose a pair'}
                 </button>
+                <small>Up to 10 models · No account needed</small>
               </div>
             )}
-
-            <div className="scene-badge">
-              <span className="status-dot" />
-              Live scale
-            </div>
-            <div className="navigation-hint">{hint}</div>
-            <div className="scale-key">
-              <span />
-              {document.mode === 'height' ? '1 m floor grid' : '1 cm surface grid'}
-            </div>
-            {/* Lets scripts and assistive tech know when models are still downloading. */}
+            {activeCount > 0 && (
+              <div className="scene-badge">
+                <span className="status-dot" />
+                {loading ? 'Loading models…' : 'True to scale'}
+              </div>
+            )}
             <span
               className="sr-only stage-status"
               role="status"
@@ -251,18 +249,44 @@ export function App({ app }: { app: CompareApp }) {
               {loading ? 'Loading models' : 'Models ready'}
             </span>
           </div>
+          <div className="stage-footer">
+            {document.mode === 'feet' && <NavToggles app={app} document={document} />}
+            <span className="navigation-hint">{hint}</span>
+            <span className="scale-key">
+              {document.mode === 'height' ? '1 m grid' : '1 cm grid'}
+            </span>
+          </div>
         </section>
-
-        <aside className="detail-column">
+        <div className="mobile-panel-switch" aria-label="Workspace panels">
+          <button
+            type="button"
+            aria-pressed={mobilePanel === 'lineup'}
+            onClick={() => setMobilePanel('lineup')}
+          >
+            Lineup <span>{activeCount}</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={mobilePanel === 'measurements'}
+            onClick={() => setMobilePanel('measurements')}
+          >
+            Measurements
+          </button>
+        </div>
+        <aside className="detail-column" aria-label="Measurement controls">
           <Inspector app={app} document={document} />
-          <PlacementList app={app} document={document} />
         </aside>
       </main>
-
+      {libraryOpen && (
+        <CatalogDrawer
+          app={app}
+          document={document}
+          announce={setNotice}
+          onClose={() => setLibraryOpen(false)}
+          onAdded={() => setMobilePanel('measurements')}
+        />
+      )}
       <div className={notice ? 'notice-toast is-visible' : 'notice-toast'} role="status">
-        {notice}
-      </div>
-      <div className="sr-only" aria-live="polite">
         {notice}
       </div>
     </div>

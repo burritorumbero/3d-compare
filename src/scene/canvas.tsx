@@ -9,7 +9,7 @@ import { HeightWorldView } from './height/world-view.tsx'
 function ClearColor({ mode }: { mode: CompareDocument['mode'] }) {
   const gl = useThree((state) => state.gl)
   useEffect(() => {
-    gl.setClearColor(mode === 'height' ? '#b8b9b5' : '#3a322a', 1)
+    gl.setClearColor('#191f23', 1)
   }, [gl, mode])
   return null
 }

@@ -46,7 +46,13 @@ function DimensionField({
 
   function commit(raw: number): void {
     const result = app.setFootDimension(placement.id, dimension, raw)
-    onError(result.ok ? '' : result.reason === 'constraint-violated' ? result.message : `Enter a valid ${label.toLowerCase()}.`)
+    onError(
+      result.ok
+        ? ''
+        : result.reason === 'constraint-violated'
+          ? result.message
+          : `Enter a valid ${label.toLowerCase()}.`,
+    )
   }
 
   const hint =
@@ -64,6 +70,7 @@ function DimensionField({
           <button
             type="button"
             className="dimension-reset"
+            aria-label={`Reset ${label.toLowerCase()}`}
             title={`Return ${label.toLowerCase()} to the adult average for this foot length`}
             onClick={() => {
               const result = app.resetFootDimension(placement.id, dimension)
@@ -98,7 +105,7 @@ function DimensionField({
             onChange={(event) => setDraft(event.target.value)}
             onBlur={() => {
               if (draft !== null && Number(draft) !== value) {
-                commit(Number(draft))
+                commit(draft.trim() ? Number(draft) : Number.NaN)
               }
               setDraft(null)
             }}
@@ -112,7 +119,11 @@ function DimensionField({
           <span>mm</span>
         </span>
       </div>
-      <small className={band === 'typical' || band === null ? 'dimension-hint' : 'dimension-hint is-unusual'}>
+      <small
+        className={
+          band === 'typical' || band === null ? 'dimension-hint' : 'dimension-hint is-unusual'
+        }
+      >
         {hint}
       </small>
     </div>
@@ -132,7 +143,10 @@ export function FootDimensions({
   const [error, setError] = useState('')
   return (
     <fieldset className="foot-dimensions">
-      <legend>Shape</legend>
+      <legend>Fine-tune shape</legend>
+      <p className="field-help">
+        Custom values stay fixed when shoe size changes. Reset to follow the average again.
+      </p>
       {FOOT_DIMENSIONS.map((dimension) => (
         <DimensionField
           key={dimension}
@@ -143,7 +157,11 @@ export function FootDimensions({
           onError={setError}
         />
       ))}
-      {error && <p className="field-error">{error}</p>}
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
     </fieldset>
   )
 }

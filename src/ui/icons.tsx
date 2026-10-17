@@ -113,3 +113,11 @@ export function PlusIcon() {
     </Glyph>
   )
 }
+
+export function CloseIcon() {
+  return (
+    <Glyph>
+      <path d="m6 6 12 12M18 6 6 18" />
+    </Glyph>
+  )
+}

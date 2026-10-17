@@ -7,16 +7,9 @@ import {
   InspectIcon,
   OrbitIcon,
   ResetIcon,
-  ShareIcon,
 } from './icons.tsx'
 
-export function NavToggles({
-  app,
-  document,
-}: {
-  app: CompareApp
-  document: CompareDocument
-}) {
+export function NavToggles({ app, document }: { app: CompareApp; document: CompareDocument }) {
   // Height mode only orbits, so it has no navigation toggle.
   if (document.mode === 'height') {
     return null
@@ -49,27 +42,31 @@ export function NavToggles({
 export function ViewActions({
   app,
   fullscreen,
-  onShare,
   onToggleFullscreen,
 }: {
   app: CompareApp
   fullscreen: boolean
-  onShare(): void
   onToggleFullscreen(): void
 }) {
   return (
     <div className="view-actions">
-      <button type="button" onClick={() => app.frameSelection()} title="Frame selection">
+      <button
+        type="button"
+        onClick={() => app.frameSelection()}
+        title="Frame selection"
+        aria-label="Frame selection"
+      >
         <FrameIcon />
         <span>Frame</span>
       </button>
-      <button type="button" onClick={() => app.resetView()} title="Reset view">
+      <button
+        type="button"
+        onClick={() => app.resetView()}
+        title="Reset view"
+        aria-label="Reset view"
+      >
         <ResetIcon />
         <span>Reset</span>
-      </button>
-      <button type="button" onClick={onShare} title="Share link">
-        <ShareIcon />
-        <span>Share</span>
       </button>
       <button
         type="button"
@@ -77,6 +74,7 @@ export function ViewActions({
         aria-pressed={fullscreen}
         onClick={onToggleFullscreen}
         title={fullscreen ? 'Exit full screen' : 'Full screen'}
+        aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
       >
         {fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
         <span>{fullscreen ? 'Exit' : 'Full screen'}</span>

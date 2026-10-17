@@ -1,139 +1,161 @@
+import { useEffect, useRef } from 'react'
 import type { CompareApp } from '../app/compare-app.ts'
 import { FEET_CATALOG } from '../catalog/feet.ts'
 import { HUMAN_CATALOG } from '../catalog/humans.ts'
-import type { ModelAsset } from '../domain/catalog.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { FEET_CAP } from '../domain/feet-world.ts'
 import { HEIGHT_CAP } from '../domain/height-world.ts'
-import { preloadRig } from '../scene/rig-cache.ts'
-import { preloadModel } from '../scene/models.ts'
-import { FootIcon, PersonIcon, PlusIcon } from './icons.tsx'
-
-/** A rigged model needs its GLB, its rig file, and the kernel. */
-function preloadRigged(model: ModelAsset): void {
-  preloadModel(model)
-  preloadRig(model)
-}
+import { formatHeight } from '../domain/measure.ts'
+import { CloseIcon, PlusIcon } from './icons.tsx'
+import { ModelPreview } from './model-preview.tsx'
 
 export function CatalogDrawer({
   app,
   document,
+  onClose,
+  onAdded,
   announce,
 }: {
   app: CompareApp
   document: CompareDocument
+  onClose(): void
+  onAdded(): void
   announce(message: string): void
 }) {
-  if (document.mode === 'height') {
-    const count = document.height.placements.length
-    const full = count >= HEIGHT_CAP
-    return (
-      <section className="panel catalog-panel" aria-labelledby="catalog-title">
+  const dialog = useRef<HTMLDialogElement>(null)
+  const isHeight = document.mode === 'height'
+  const count = isHeight ? document.height.placements.length : document.feet.placements.length
+  const cap = isHeight ? HEIGHT_CAP : FEET_CAP
+  const full = count >= cap
+  useEffect(() => {
+    const element = dialog.current!
+    const opener = window.document.activeElement as HTMLElement | null
+    element.showModal()
+    return () => {
+      element.close()
+      queueMicrotask(() => {
+        if (opener?.isConnected && opener.getClientRects().length)
+          opener.focus({ preventScroll: true })
+        else
+          window.document
+            .querySelector<HTMLElement>('.inspector-panel input, #main-stage')
+            ?.focus({ preventScroll: true })
+      })
+    }
+  }, [])
+
+  return (
+    <dialog
+      ref={dialog}
+      className="catalog-dialog"
+      aria-labelledby="catalog-title"
+      onCancel={(event) => {
+        event.preventDefault()
+        onClose()
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return
+        const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+        const first = buttons[0]
+        const last = buttons[buttons.length - 1]
+        const active = window.document.activeElement
+        if (event.shiftKey && active === first) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault()
+          first?.focus()
+        }
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <section className="catalog-panel">
         <div className="panel-heading">
           <div>
             <span className="eyebrow">Model library</span>
-            <h2 id="catalog-title">People</h2>
+            <h2 id="catalog-title">{isHeight ? 'Add a person' : 'Add a pair of feet'}</h2>
           </div>
-          <span className={full ? 'capacity is-full' : 'capacity'}>
-            {count}/{HEIGHT_CAP}
-          </span>
-        </div>
-        <p className="panel-intro">Choose a silhouette. You can add the same person more than once.</p>
-        <div className="catalog-grid">
-          {HUMAN_CATALOG.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className="catalog-card"
-              disabled={full}
-              onPointerEnter={() => preloadRigged(entry.model)}
-              onFocus={() => preloadRigged(entry.model)}
-              onClick={() => {
-                const result = app.placeHuman(entry.id)
-                if (!result.ok) {
-                  announce('The height stage is full. Remove a person to add another.')
-                }
-              }}
-            >
-              <span
-                className="catalog-portrait"
-                style={{
-                  color: entry.swatch.outfitHex,
-                  backgroundColor: entry.swatch.skinHex,
-                }}
-              >
-                <PersonIcon />
-              </span>
-              <span className="catalog-copy">
-                <strong>{entry.label}</strong>
-                <small>{entry.subtitle}</small>
-              </span>
-              <span className="catalog-add" aria-hidden="true">
-                <PlusIcon />
-              </span>
-            </button>
-          ))}
-        </div>
-        {full && (
-          <p className="cap-message" role="status">
-            Stage full. Remove a person before adding another.
-          </p>
-        )}
-      </section>
-    )
-  }
-
-  const count = document.feet.placements.length
-  const full = count >= FEET_CAP
-  return (
-    <section className="panel catalog-panel" aria-labelledby="catalog-title">
-      <div className="panel-heading">
-        <div>
-          <span className="eyebrow">Model library</span>
-          <h2 id="catalog-title">Feet</h2>
-        </div>
-        <span className={full ? 'capacity is-full' : 'capacity'}>
-          {count}/{FEET_CAP}
-        </span>
-      </div>
-      <p className="panel-intro">Add a pair of feet, cut at mid-shin, to the measuring table.</p>
-      <div className="catalog-grid feet-catalog">
-        {FEET_CATALOG.map((entry) => (
           <button
-            key={entry.id}
+            className="icon-button"
             type="button"
-            className="catalog-card"
-            disabled={full}
-            onPointerEnter={() => preloadRigged(entry.model)}
-            onFocus={() => preloadRigged(entry.model)}
-            onClick={() => {
-              const result = app.placeFoot(entry.id)
-              if (!result.ok) {
-                announce('The feet table is full. Remove a model to add another.')
-              }
-            }}
+            aria-label="Close model library"
+            onClick={onClose}
           >
-            <span
-              className="catalog-portrait foot-portrait"
-              style={{ color: entry.swatch.outfitHex, backgroundColor: entry.swatch.skinHex }}
-            >
-              <FootIcon />
-            </span>
-            <span className="catalog-copy">
-              <strong>{entry.label}</strong>
-              <small>{entry.subtitle}</small>
-            </span>
-            <span className="catalog-add" aria-hidden="true">
-              <PlusIcon />
-            </span>
+            <CloseIcon />
           </button>
-        ))}
-      </div>
-      {full && (
-        <p className="cap-message" role="status">
-          Table full. Remove a model before adding another.
+        </div>
+        <p className="panel-intro">
+          Choose a model, then adjust its measurements. You can add the same model more than once.
         </p>
-      )}
-    </section>
+        <div className={`catalog-grid ${isHeight ? '' : 'feet-catalog'}`}>
+          {isHeight
+            ? HUMAN_CATALOG.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="catalog-card"
+                  aria-label={`Add ${entry.label}`}
+                  disabled={full}
+                  onClick={() => {
+                    const result = app.placeHuman(entry.id)
+                    if (result.ok) {
+                      onAdded()
+                      onClose()
+                    } else announce('Your lineup is full. Remove a person to add another.')
+                  }}
+                >
+                  <span className="catalog-portrait">
+                    <ModelPreview model={entry.model} />
+                  </span>
+                  <span className="catalog-copy">
+                    <strong>{entry.label}</strong>
+                    <small>
+                      {entry.sex === 'female' ? 'Female' : 'Male'} ·{' '}
+                      {formatHeight(entry.referenceHeightMm, document.heightUnit)}
+                    </small>
+                  </span>
+                  <span className="catalog-add">
+                    <PlusIcon />
+                  </span>
+                </button>
+              ))
+            : FEET_CATALOG.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="catalog-card"
+                  aria-label={`Add ${entry.label.toLowerCase()}`}
+                  disabled={full}
+                  onClick={() => {
+                    const result = app.placeFoot(entry.id)
+                    if (result.ok) {
+                      onAdded()
+                      onClose()
+                    } else announce('Your lineup is full. Remove a pair to add another.')
+                  }}
+                >
+                  <span className="catalog-portrait">
+                    <ModelPreview model={entry.model} />
+                  </span>
+                  <span className="catalog-copy">
+                    <strong>{entry.label}</strong>
+                    <small>Pair · includes lower legs</small>
+                  </span>
+                  <span className="catalog-add">
+                    <PlusIcon />
+                  </span>
+                </button>
+              ))}
+        </div>
+        <div className="catalog-footer">
+          <span>
+            {count} of {cap} places used
+          </span>
+          <span>Measurements can be changed anytime</span>
+        </div>
+      </section>
+    </dialog>
   )
 }
