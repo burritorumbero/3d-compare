@@ -1,6 +1,6 @@
 # Parametric sizing: assessment and work plan
 
-Status, 2026-10-17: Phases 1 and 2 are done, and Phase 0 is partly done. See the checkboxes below.
+Status, 2026-10-17: Phases 1–3 are done, and Phase 0 is partly done. See the checkboxes below.
 
 ## Goal
 
@@ -134,10 +134,25 @@ Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `
 
 ### Phase 3: feet asset rebuild (Blender pipeline)
 
-- [ ] `tools/assets/build_feet.py` (headless): G9 character per sex via Diffeomorphic, shin cut and cap, rig, weights, correctives, landmark groups, texture bake, then GLB + `rig.json` export.
-- [ ] Render comparison against Genesis 9 feet, with screenshots kept in `.design/renders/`.
-- [ ] Rewrite `verify-models.mjs`: the static-mesh asserts become rig/morph/landmark asserts, and it runs the kernel on the shipped GLBs.
-- [ ] Update `manifest.json` and `ASSET_LICENSES.md`.
+- [x] `tools/assets/build_feet.py` runs headless in about 3 s per pair. Steps:
+  1. Import the character with Diffeomorphic and apply its body shape. Character presets drive their shape through formulas (for example, Laura = 0.8 BaseFeminine − 1 BaseMasculine + proportion shapes). Headless Blender doesn't evaluate those drivers, so the script reads the formula weights from `<Name>_body_bs_body.dsf` and sets the shape keys directly. Bone-scale `_ctrl_…_scl` controls are skipped; the kernel sets the final sizes anyway.
+  2. Keep the lower legs, subdivide once, cut at 1.3 × foot length, and cap with a single skin UV.
+  3. Weights: the `_DEFORM_WEIGHTS` attribute (shin, foot, toes) comes from Genesis 9's own groups (shin; foot + metatarsal; toes + every toe bone). Shin weight hands over at 0.30–0.42 × foot length. Toenails are 100% toes.
+  4. Materials: plain PBR (diffuse map as albedo, normal, roughness), cropped from the 4K UDIM tiles with the OpenImageIO bundled in Blender.
+- [x] Characters: Laura (female, tan) and Matt (male, pale), matching the catalog. Each mesh has about 10.1–10.3k vertices per foot (40–41k triangles per pair), and each GLB is about 2.4 MB.
+- [x] `scripts/build-feet-assets.mjs` (`npm run assets:feet`) runs Blender, then writes `*.rig.json` from the exported GLB (`scripts/foot-rig.mjs`), so rig vertex indices always match the GLB. The ball line is where the toes weight crosses 0.5 on the sole.
+- [x] Bones are rebuilt at runtime from the rig file (identity rest rotation, heads on the floor), not exported from Blender. Blender's bone axes would break the contract that `bone.scale` equals the kernel's math.
+- [x] `verify-models`:
+  - checks for the rig file and that every vertex has deform weights;
+  - the "faces +Z" check now asks which way the toes point.
+- [x] `verify-kernel` now runs on the shipped rigs:
+  - every rig vertex matches its GLB vertex and weights, and weights sum to 1;
+  - left and right feet solve to the same controls;
+  - 378 solves with a worst error of 0.049 mm.
+- [x] Instep ratio confirmed at 0.25: standing dorsum height at 50% foot length is 65.3 mm on a 259.5 mm foot, a ratio of 0.252 (IJERPH 2020, 17(4):1274). Genesis 9 sculpts measure 0.29–0.30, so the rig will lower them toward the average.
+- [x] Acceptance screenshots from the app are in `.design/renders/`.
+- Material finding: Diffeomorphic's Cycles conversion of Genesis 9 skin renders at about 4% reflectance under uniform light. Its subsurface scale looks centimeter-based on a meter mesh, so it isn't a usable color reference. The diffuse map as albedo matches Daz's Iray promo renders well. A skin subsurface approximation in three.js stays a Phase 6 polish item.
+- Deferred to Phase 4, where skinning becomes visible: corrective shape keys, for example so a long toe scale doesn't stretch the nails, if renders at the range extremes need them.
 
 ### Phase 4: feet runtime and UI
 
