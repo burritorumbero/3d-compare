@@ -49,7 +49,7 @@ The final domain, lint, production build, browser workflow, and live WebGL frame
 - The models are static A-pose meshes. There is no animation, pose control, or clothing control.
 - Each human model decodes to about 40 MB of GPU textures; all eight models total about 280 MB if every one is on stage.
 - Catalog cards show flat color swatches rather than rendered thumbnails of the models.
-- Human height uses uniform scaling. It does not solve body segments independently.
+- Human height uses uniform scaling. It does not solve body segments independently yet (Phase 5 of `PARAMETRIC_PLAN.md`).
 - Shoe charts cover adult US 4 to 16 for men, US 4 to 14 for women, and EU 34 to 50.
 - Persistence is local to one browser. There is no account, cloud sync, or shareable URL.
 - The production JavaScript bundle includes Three.js and is about 1.16 MB before gzip. Vite reports its default 500 kB chunk warning.
@@ -69,3 +69,14 @@ Replaced the procedural stand-ins with the eight-model CC0 GLB pack (MakeHuman C
 ## Follow-up: stage controls and sharing (2026-09-07)
 
 Height mode lost its walk rig and walls: it now orbits over an open floor with the ruler post as the only fixture. Info blocks render only for the selected figure, so at most one is visible and a tap reveals it. People can be renamed from the inspector (`renameHuman`, 40 characters, blank restores the catalog label). Shoe charts extend to US women's 20 (344 mm), US men's 22 (374 mm), and EU 58 (376 mm), with `FOOT_LENGTH_MM_MAX` at 380 and a 2.6 by 1.4 m table. The stage gains full screen (Fullscreen API with a fixed-position fallback for iPhone Safari) and a Share button that copies a query-string link (`src/app/share.ts`) reproducing both worlds; `main.tsx` imports such links and clears the address bar. Stage height follows the viewport below 980 px.
+
+## Follow-up: parametric foot shape and 10 ft heights (2026-10-17)
+
+This is Phase 1 of `.design/PARAMETRIC_PLAN.md`.
+
+- **Foot shape.** Feet carry a `FootShape`: foot length, toe length, ball width and instep height in millimeters, plus the set of locked dimensions. Unlocked dimensions follow ANSUR II adult ratio medians, generated into `src/domain/anthropometry.ts` by `tools/anthro/fit_ansur.py`. Toe length adds to foot length, so it moves the shoe size.
+- **Constraints.** Violations come back as typed `constraint-violated` results naming the dimension, and the state is left unchanged.
+- **Saves and links.** Documents are version 2. Version 1 saves migrate to average feet of the saved length. Share links add `t`/`w`/`i` tags for locked dimensions, and untagged links still open.
+- **Interim rendering.** Until rigged models land, the scene scales feet per axis relative to the typical shape.
+- **Heights.** Heights reach 3048 mm (10 ft). The lineup is spaced by each person's scaled arm-span footprint. The overview camera fits the lineup width and the tallest person for the stage aspect ratio. The ruler post is 320 cm and the floor is 24 m.
+- **Checks.** verify:domain, verify:models, lint, build and verify:ui pass.

@@ -1,0 +1,178 @@
+# Parametric sizing: assessment and work plan
+
+Status, 2026-10-17: Phase 0 is partly done and Phase 1 is done. See the checkboxes below.
+
+## Goal
+
+Replace uniform (affine) scaling with parametric, constraint-driven sizing:
+
+- **Feet**: independent controls for foot length (still drivable by shoe size), forefoot width, foot thickness (instep height) and toe length. The shape has to stay organic and realistic.
+- **Humans**: stature changes that follow human proportions (allometry) instead of enlarging the whole body. Example: the head grows less than the legs. Heights range from 90 cm to **10 ft (3048 mm)**.
+- **Models**: keep, or raise, realism comparable to a base Daz3D Genesis figure.
+- **Exactness**: the product exists to compare sizes, so every requested measurement must be the measured measurement of the rendered mesh, within ±1 mm. Today `verify:models` guarantees this for uniform scaling. The new system must keep that guarantee.
+
+## Assessment of the current state
+
+| Area | Today | Problem for parametric sizing |
+| --- | --- | --- |
+| Feet assets | `*-feet-shins.glb`: two static meshes (`LeftFootAndShin`, `RightFootAndShin`), about 7.5k vertices each, one diffuse JPEG, no normal or roughness map | No morph targets, no skeleton, no landmark data, so there is nothing to deform except the whole object. Detail and shading sit below Daz level (no normal map, toes are low poly). |
+| Human assets | 6 static meshes, ~23k body vertices, 6–9 meshes each, ~5 MB, ~40 MB of GPU textures each | Not rigged. Clothing, hair and eyes are separate meshes that would all have to deform consistently. |
+| Asset reproducibility | `source-assets/` is git-ignored and **missing on this machine**, and no Blender build script is in the repo | The models cannot be regenerated. Any revamp has to rebuild the pipeline first. |
+| Domain | `PlacedFoot.footLengthMm` is a single scalar. `footScale()`/`heightScale()` return one ratio. | The data model has no place for shape parameters. |
+| Persistence | `CompareDocument.version: 1`. A version mismatch drops the saved lineup. | A schema change needs a v1→v2 migration so existing users keep their lineups. |
+| Share links | `f=foot-male:272` | The link format needs room for shape parameters and must still accept old links. |
+| Scene | `draw.scale` passed to `<primitive scale>`; bounds come from the authored mesh × scale; `narrowStance` moves rigid per-foot meshes | Bounds, hit box, ring, label and blob shadow all assume uniform scale. Skinned or morphed meshes also need explicit bounds, or frustum culling and the hit boxes will be wrong. |
+| Cloning | `gltf.scene.clone(true)` | Breaks with skinned meshes (bones aren't rebound). Needs `SkeletonUtils.clone`. |
+| UI | Foot inspector has one shoe-size `<select>` | Needs the four parameter controls, locks, units and a reset. |
+| Verification | `verify-models.mjs` asserts static meshes: no skins, no `extensionsRequired`, transforms baked in | These assertions will fail by design after the change and must be rewritten. They should prove landmark measurements across a grid of parameters. |
+| Toolchain | Blender 5.2 LTS (works headless), Daz Studio + Genesis 8/9 library, Diffeomorphic `import_daz`, Rust + `wasm32-unknown-unknown` | No `wasm-bindgen-cli`/`wasm-pack` yet. |
+
+## Technical direction
+
+### WASM geometry kernel: where it helps and where it doesn't
+
+A B-rep CAD kernel (OpenCascade.js, Manifold) is the **wrong** tool. It works on watertight boundary representations with sharp features and booleans. Converting an organic, UV-mapped skin mesh to B-rep and back loses smoothness and UVs, and adds a 10–30 MB wasm payload. Deformation speed also isn't the bottleneck: the GPU applies skinning and morph targets in the vertex shader for 15–25k vertices in well under a millisecond.
+
+"Parametric/CAD" here means **CAD-style constraints over a deformable mesh**: named dimensions, locks, derived defaults, and a solver that guarantees the dimensions. The plan splits it like this:
+
+- **GPU (three.js)** renders the deformation through a small deform-bone rig plus corrective morph targets. Each frame costs almost nothing.
+- **Rust → WASM kernel** (`kernel/`, `wasm-bindgen`, no external CAD dependency, target < 150 kB) owns the math the GPU can't report back:
+  1. evaluating the same deformation on the CPU (linear blend skinning + morphs) for the landmark vertices only, or for the full mesh when bounds are needed;
+  2. measuring landmarks: heel-to-toe length, ball width, instep height, toe length, stature, bounds;
+  3. **the inverse solve**: from requested measurements to bone scales and morph weights. This is a damped Gauss–Newton/Levenberg–Marquardt solve on a 4–6 dimensional problem, converging to ±0.5 mm in a few iterations;
+  4. the same binary runs in Node, so `verify:*` scripts prove "requested = measured" with production code.
+
+  This is where WASM genuinely helps: one exact, deterministic, fast solver shared by the browser and CI. Without the solver, smooth bone weights make the dimensions interact (for example, widening the forefoot slightly lengthens the toes), and the sizes would be approximate. (The local Qwen 3.8 model reviewed this split independently and came to the same conclusion.)
+
+### Feet rig and parameters
+
+Deform bones for each foot: `heel`, `midfoot`, `metatarsal`, `toes`, plus a fixed `shin` root. Weights are painted smooth, and the shin is excluded from width and thickness changes. Correctives:
+
+- `width+` and `width-` to spread or narrow the toes and keep the forefoot rounded;
+- `instep+` and `instep-` to raise the dorsum while keeping the sole flat;
+- `toes-long` and `toes-short` to lengthen the phalanges without stretching the nails.
+
+Parameters are stored in mm. Defaults derive from length by sex ratio unless locked:
+
+| Parameter | Landmark definition | Default | Allowed range |
+| --- | --- | --- | --- |
+| `lengthMm` | pternion → tip of longest toe (shoe size maps here, as today) | from shoe size | 200–380 |
+| `ballWidthMm` | horizontal distance between the 1st and 5th MTP heads | ANSUR II width ratio median (F 0.377, M 0.376) | ratio 0.30–0.48 |
+| `instepHeightMm` | floor → dorsum at 50% of length | provisional ratio 0.25 (ANSUR II has no instep column; confirmed). The current MakeHuman meshes measure 0.29 | ratio 0.18–0.34 |
+| `toeLengthMm` | 1st MTP → tip, so it equals `length − balloffootlength` | ANSUR II toe ratio median (F 0.261, M 0.259) | ratio 0.18–0.34 |
+
+Constraint semantics, decided as the default and reversible:
+
+- Foot length is primary because shoe size depends on it. Changing toe length **adds to or removes from** foot length, so the shoe size moves with it (owner decision 2).
+- Defaults use ratio medians, not linear fits. Fits with an intercept drift outside the surveyed range: a 380 mm foot would get a width ratio of 0.32 against a median of 0.376.
+- Any unlocked parameter follows its ratio when the length changes. A locked parameter keeps its millimeters. This is the CAD "driven vs driving dimension" model.
+- Out-of-range values come back as a typed `constraint-violated` result naming the parameter. Values are never silently clamped.
+
+### Humans: allometric stature
+
+The user-facing input stays a single height. Internally, the stature solve sets segment bone scales from per-sex regressions of ANSUR II segment heights on stature: head, neck, trunk, thigh, shank, foot, plus breadth with a slower exponent. The solver then pins the measured skull-top height to the requested stature exactly. A later phase can add breadth/build parameters; they are out of scope unless requested.
+
+### Models revamp
+
+Rigging and correctives require a rebuild in any case. The pipeline lives in the repo as Blender Python under `tools/assets/`, so models become reproducible:
+
+1. Base: Daz Genesis 9 through Diffeomorphic (see Decisions). The feet are cut from the G9 body at mid-shin and capped.
+2. Detail: 2K diffuse, normal and roughness maps for skin, with the normal map baked from a sculpt pass for creases, knuckles and nail beds. Materials use `MeshPhysicalMaterial` with sheen and wrap lighting to approximate subsurface scattering.
+3. Rig, weights, corrective shape keys and landmark vertex groups. The export is a GLB with morph targets, plus a `*.rig.json` sidecar: landmark vertex indices, bone rest data, parameter→bone map, and default ratios.
+4. Compression: meshopt geometry and KTX2/Basis textures. KTX2 should cut the ~40 MB of GPU memory per human by about 4×. This adds `EXT_meshopt_compression`/`KHR_texture_basisu`, so the loader needs `MeshoptDecoder` and `KTX2Loader`.
+5. Acceptance: renders under fixed lights side by side with a Genesis 9 reference render from the local Daz library, checked at the same camera.
+
+## Decisions (owner, 2026-10-17)
+
+1. **Ship Daz Genesis 9 models.** The owner handles licensing. Daz source files stay out of git (`source-assets/` is ignored). The exported GLBs in `public/models` are published with the site.
+2. **Toe length changes foot length and shoe size.** Foot length = heel-to-ball + toe length. Editing toes keeps heel-to-ball and moves the toe tip. Choosing a shoe size sets foot length, and unlocked toes follow the adult ratio.
+3. **Human height reaches 10 ft (3048 mm).** Beyond the ANSUR II stature range (1.41–1.99 m), the allometric power laws extrapolate. Head height grows with stature^0.24–0.29, so a 3 m figure gets a proportionally small head, consistent with gigantism.
+
+### Asset source: Daz Genesis 9 (replaces the MakeHuman/MPFB plan)
+
+Verified on this machine:
+
+- Diffeomorphic `import_daz` 5.1 runs headless in Blender 5.2. `api.set_selection([duf]); bpy.ops.daz.import_daz_manually()` imported `Laura for Genesis 9.duf` in under 1 s: a 138-bone armature, a 25,182-vertex mesh, and per-region diffuse, normal, roughness and SSS maps.
+- There are six G9 characters: Amala, Kat and Laura (female); Fabrice, Matt and Ty (male). They replace the six MakeHuman people one for one.
+- Clothing: G9 Base Shirt, Shorts, Bikini and Bra, Worker Uniform, and the BW Strapless Beach 02 outfit. Hair: G9 Base Pixie, Eirgrid, and Mavick Hair and Beard.
+- G9 has **no foot shape morphs**, only pose controls such as toe bends and spread. It does have per-toe bones, so the deform-bone rig is still needed, and the toe bones help with toe length.
+- Still to check: whether the character `.duf` presets apply their body shape morph on import, or only the base mesh plus skin. Eyes, brows and lashes are separate G9 figures and need their own import.
+
+## Work plan
+
+Each phase ends green on `verify:domain`, `verify:models`, `lint`, `build` and `verify:ui`, and is one commit series.
+
+### Phase 0: groundwork
+
+- [ ] Install `wasm-bindgen-cli` (pinned to the crate's `wasm-bindgen` version).
+- [x] Confirm the Daz → Blender path works headless (Diffeomorphic 5.1, Blender 5.2).
+- [ ] Record G9 product versions and checksums in `source-assets/provenance.json` (local, git-ignored).
+- [x] ANSUR II: `tools/anthro/fit_ansur.py` downloads the CSVs (SHA-256 pinned, cached in the git-ignored `tools/anthro/.cache`) and generates `src/domain/anthropometry.ts`.
+- [x] Owner decisions recorded above.
+
+### Phase 1: domain model (pure TS, no new assets)
+
+- [x] `src/domain/foot-shape.ts`: `FootShape { lengthMm, toeLengthMm, ballWidthMm, instepHeightMm, locked }`, with `typicalFootShape`, `resizeFoot`, `setFootDimension`, `resetFootDimension` and `validateFootShape`. Errors are typed `constraint-violated` results that name the dimension.
+- [x] `PlacedFoot.footLengthMm` → `PlacedFoot.shape`. The app gains `setFootDimension` and `resetFootDimension`. `updateFootSize` re-derives the unlocked dimensions.
+- [x] `CompareDocument` v2 with a v1→v2 migration. Old saves become average feet of the saved length.
+- [x] Share codec: `f=foot-male:281:t81:w110` (locked dimensions only). Old untagged links still decode.
+- [x] Inspector: a slider and mm field per dimension, an Average/Reset state, and hints when a value is outside the 1st–99th percentile. The lineup tags custom shapes.
+- [x] Interim rendering until the rig lands: per-axis scale relative to the typical shape (`footAxisScale` in `scene/draw.ts`). Toes show only through total length.
+- [x] Heights up to 10 ft. The lineup is spaced by scaled footprints (`humanLineupX`). The camera framing accounts for the stage aspect ratio and the tallest person. A 320 cm ruler and a wider floor were added.
+- [x] Tests: `verify-domain` (shapes, locks, constraints, migration, links, 10 ft heights, no lineup overlap), `verify-models` (footprint widths), `verify-ui` (toe edit, rejected width, 304.8 cm limit, share link).
+
+### Phase 2: kernel (`kernel/`, Rust → WASM)
+
+- [ ] Crate API: `load_rig(rig_json, landmark_rest_positions)`, `solve_foot(params) -> {bone_scales, morph_weights, measured, bounds}`, `solve_stature(mm) -> …`, `measure(...)`.
+- [ ] LBS + morph evaluation on landmark vertices, and bounds from a precomputed convex hull or vertex subset.
+- [ ] LM solver with analytic or finite-difference Jacobian. Target: ≤ 0.5 mm error, < 1 ms per solve, deterministic.
+- [ ] `npm run build:kernel` (cargo + wasm-bindgen `--target web`). A thin TS wrapper in `src/kernel/` handles async init, and the scene waits for it the same way it waits for models.
+- [ ] `npm run verify:kernel` in Node: a parameter grid over the full ranges, asserting measured = requested within ±1 mm and no NaN/inverted bounds.
+- [ ] CI: add the Rust toolchain and wasm target to `deploy-pages.yml`, and cache cargo.
+
+### Phase 3: feet asset rebuild (Blender pipeline)
+
+- [ ] `tools/assets/build_feet.py` (headless): G9 character per sex via Diffeomorphic, shin cut and cap, rig, weights, correctives, landmark groups, texture bake, then GLB + `rig.json` export.
+- [ ] Render comparison against Genesis 9 feet, with screenshots kept in `.design/renders/`.
+- [ ] Rewrite `verify-models.mjs`: the static-mesh asserts become rig/morph/landmark asserts, and it runs the kernel on the shipped GLBs.
+- [ ] Update `manifest.json` and `ASSET_LICENSES.md`.
+
+### Phase 4: feet runtime and UI
+
+- [ ] `models.ts`: `SkeletonUtils.clone`, plus meshopt and KTX2 decoders.
+- [ ] `draw.ts`: `FootDraw.scale` becomes `FootDraw.solve` (the kernel output). `figures.tsx` applies bone scales and morph influences. The hit box, ring, label and shadow come from the kernel bounds. `narrowStance` moves to the `shin` root bones.
+- [ ] Inspector: the shoe size select stays. Add four slider + number fields (mm or in, following the height unit), a lock per parameter, "Reset to typical", and a percentile hint against ANSUR. Slider drags solve live and commit on release so persistence isn't hit on every frame.
+- [ ] The lineup row and label show size plus non-default parameters, for example `US 10 · wide · high instep`.
+- [ ] `verify-ui.mjs`: drag sliders, check the label and measured values, reload persistence, round-trip a share link.
+- [ ] Performance: 10 pairs with one slider dragging at 60 fps on the dev laptop.
+
+### Phase 5: humans
+
+- [ ] `tools/assets/build_humans.py`: G9 rig (trimmed to deform bones), skinned clothing, hair and eyes, segment bones, KTX2. Map the six G9 characters onto the catalog ids, and rename the catalog where the people change.
+- [ ] Allometric `solve_stature` in the kernel, figure integration, and an updated inspector note ("Proportions follow adult averages for this height").
+- [ ] `verify-models`/`verify-kernel`: the stature grid at 900–2300 mm measures exactly, and head/leg ratios stay inside the ANSUR envelope.
+
+### Phase 6: closeout
+
+- [ ] README, `IMPLEMENTATION_STATUS.md` and `.audit` entries.
+- [ ] Bundle and GPU budget check (the Vite chunk warning, wasm size, texture memory before and after).
+
+## Local model (MLX-Serve, `localhost:11234`) usage
+
+Use `Qwen3.8-27B-MLX-8bit` (≈45 s per 900-token answer) for bounded, verifiable side work:
+
+- drafting Blender `bpy` boilerplate;
+- generating parameter-grid test tables;
+- summarizing ANSUR II column documentation;
+- second-opinion reviews of solver math and diffs.
+
+Its output is always checked against tests or a run. It never commits code that hasn't been executed here.
+
+## Risks
+
+0. **Daz figure fidelity vs web budget**: G9 skins ship 4K UDIM-style maps for each region, and the hair is dense. Mitigation: bake down to 2K atlases, use KTX2, and decimate the hair cards. Budget 8 MB per human.
+1. **Correctives vs linear blending**: large length ranges (200–380 mm) on a single morph look rubbery. That is why length and toes go through bones and morphs only shape. Mitigation: render checks at the range extremes.
+2. **Clothing on rigged humans** can poke through skin at extreme statures. Mitigation: hide body faces under clothing (geometry-shell / delete groups), plus a test grid at 0.9, 1.7 and 3.05 m.
+3. **Landmark stability** after subdivision and decimation. Mitigation: store landmarks as vertex groups and re-resolve the indices at export.
+4. **Asset size**: morphs plus normal maps grow the GLBs. Mitigation: meshopt + KTX2, budget 2 MB per feet pair and 6 MB per human.
+5. **Pipeline reproducibility**: the current source assets are lost. Phase 0 is mandatory, not optional.
