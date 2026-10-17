@@ -11,41 +11,32 @@ import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { footDimensionRange } from '../src/domain/foot-shape.ts'
 import { assertFootRig, footTargets, solveFoot } from '../src/kernel/foot.ts'
 import { RigSolver, loadKernel } from '../src/kernel/index.ts'
+import { poseFoot, rigFoot } from '../src/scene/feet/rigged-foot.ts'
 import { meshAttribute, meshPositions, readGlb } from './glb.mjs'
 
 const MAX_ERROR_MM = 0.1
 await loadKernel(readFileSync(fileURLToPath(new URL('../src/kernel/pkg/kernel_bg.wasm', import.meta.url))))
 
-/** Deforms the rig's vertices the way three.js skinning does on the GPU. */
-function skinWithThree(rig, pose) {
-  const bones = rig.bones.map(() => new THREE.Bone())
-  rig.bones.forEach((spec, index) => {
-    const parentIndex = rig.bones.findIndex((candidate) => candidate.name === spec.parent)
-    const parentHead = parentIndex === -1 ? [0, 0, 0] : rig.bones[parentIndex].head
-    bones[index].position.set(spec.head[0] - parentHead[0], spec.head[1] - parentHead[1], spec.head[2] - parentHead[2])
-    if (parentIndex !== -1) {
-      bones[parentIndex].add(bones[index])
-    }
-  })
-  bones[0].updateMatrixWorld(true)
-  const skeleton = new THREE.Skeleton(bones)
-  skeleton.calculateInverses()
-  pose.boneScales.forEach((scale, index) => bones[index].scale.set(...scale))
-  bones[0].updateMatrixWorld(true)
-  const skin = bones.map((bone, index) => new THREE.Matrix4().multiplyMatrices(bone.matrixWorld, skeleton.boneInverses[index]))
-
-  const { positions, skinBones, skinWeights } = rig.vertices
-  return Array.from({ length: positions.length / 3 }, (_, vertex) => {
-    const rest = new THREE.Vector3().fromArray(positions, vertex * 3)
-    const out = new THREE.Vector3()
-    for (let slot = 0; slot < 4; slot += 1) {
-      const weight = skinWeights[vertex * 4 + slot]
-      if (weight > 0) {
-        out.addScaledVector(rest.clone().applyMatrix4(skin[skinBones[vertex * 4 + slot]]), weight)
-      }
-    }
-    return out
-  })
+/**
+ * Deforms the rig's sample vertices with the app's own skinning code: the foot
+ * is rigged and posed by src/scene/feet/rigged-foot.ts and each vertex goes
+ * through three.js SkinnedMesh.applyBoneTransform, the CPU twin of the shader.
+ */
+function skinWithApp(glb, rig, pose) {
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(meshPositions(glb, rig.mesh).flat(), 3))
+  geometry.setAttribute('_deform_weights', new THREE.Float32BufferAttribute(meshAttribute(glb, rig.mesh, '_DEFORM_WEIGHTS').flat(), 3))
+  const node = new THREE.Mesh(geometry)
+  node.name = rig.mesh
+  const foot = rigFoot(node, rig)
+  poseFoot(foot, pose)
+  // Placement moves the root; skinning must follow it exactly.
+  foot.root.position.set(0.37, 0, -0.21)
+  foot.root.updateMatrixWorld(true)
+  const [mesh] = foot.meshes
+  return rig.vertices.source.map((source) =>
+    mesh.applyBoneTransform(source, new THREE.Vector3().fromBufferAttribute(geometry.getAttribute('position'), source)).sub(foot.root.position),
+  )
 }
 
 function measureWithThree(rig, points) {
@@ -148,14 +139,14 @@ for (const entry of FEET_CATALOG) {
     }
   }
 
-  // The GPU path: three.js bones scaled by the kernel's pose measure the same.
+  // The GPU path: the app's rigged foot, posed by the kernel, measures the same.
   const sample = { lengthMm: 310, toeLengthMm: 95, ballWidthMm: 128, instepHeightMm: 70, locked: [] }
   const solution = solveFoot(solver, sample)
-  const three = measureWithThree(rig, skinWithThree(rig, solver.pose(solution.controls)))
+  const three = measureWithThree(rig, skinWithApp(glb, rig, solver.pose(solution.controls)))
   for (const [name, target] of Object.entries(footTargets(sample))) {
     assert.ok(
       Math.abs(three[name] - target) < 0.0001,
-      `${entry.id}: three.js skinning measures ${name} ${(three[name] * 1000).toFixed(2)} mm, wanted ${(target * 1000).toFixed(2)} mm`,
+      `${entry.id}: the app's skinned foot measures ${name} ${(three[name] * 1000).toFixed(2)} mm, wanted ${(target * 1000).toFixed(2)} mm`,
     )
   }
 
@@ -168,5 +159,5 @@ for (const entry of FEET_CATALOG) {
 
 console.log(
   `Kernel verification passed: shipped rigs match their GLBs, ${solves} foot solves (left and right agree), worst error ${worst.toFixed(4)} mm, ` +
-    `${(elapsed / solves).toFixed(2)} ms per solve, three.js skinning agrees.`,
+    `${(elapsed / solves).toFixed(2)} ms per solve, the app's three.js skinning agrees.`,
 )

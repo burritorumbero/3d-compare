@@ -1,13 +1,17 @@
 import { Html, useCursor } from '@react-three/drei'
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
-import { Suspense, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { CompareApp } from '../../app/compare-app.ts'
 import type { FeetWorld } from '../../domain/feet-world.ts'
 import type { ShoeSystem } from '../../domain/shoe-charts.ts'
 import { BlobShadow } from '../blob-shadow.tsx'
 import { toFootDraw, type FootDraw } from '../draw.ts'
-import { useModel } from '../models.ts'
+import { solveFoot } from '../../kernel/foot.ts'
+import type { Bounds } from '../../kernel/index.ts'
+import { useModelScene } from '../models.ts'
+import { useFeetRig } from './foot-rigs.ts'
+import { poseFoot, rigFoot } from './rigged-foot.ts'
 
 /** Gap between the inner edges of the two feet once the authored stance is narrowed. */
 const PAIR_GAP_M = 0.05
@@ -17,56 +21,73 @@ type FigureProps = {
   draw: FootDraw
 }
 
-function footBox(mesh: THREE.Mesh): THREE.Box3 {
-  if (!mesh.geometry.boundingBox) {
-    mesh.geometry.computeBoundingBox()
-  }
+/**
+ * Each placement's last solved controls. A slider drag starts the next solve
+ * from them and converges in a step or two; any start gives the same answer.
+ */
+const lastControls = new Map<string, Readonly<Record<string, number>>>()
 
-  return mesh.geometry.boundingBox!.clone()
+function toBox(bounds: Bounds, shiftX: number): THREE.Box3 {
+  return new THREE.Box3(
+    new THREE.Vector3(bounds.min[0] + shiftX, bounds.min[1], bounds.min[2]),
+    new THREE.Vector3(bounds.max[0] + shiftX, bounds.max[1], bounds.max[2]),
+  )
 }
 
 /**
- * The pack authors each pair in a relaxed stance about 0.45 m across. Sliding the
- * two rigid feet toward the center keeps every pair compact on the table without
- * touching the meshes themselves. Returns the bounds of the narrowed pair.
+ * The pack authors each pair in a relaxed stance. Sliding the two feet toward
+ * the center keeps every pair compact on the table: returns how far each foot
+ * moves inward, from the solved bounds of the left (+x) and right (-x) foot.
  */
-function narrowStance(pair: THREE.Group, fallback: THREE.Box3): THREE.Box3 {
-  const left = pair.getObjectByName('LeftFootAndShin')
-  const right = pair.getObjectByName('RightFootAndShin')
-  if (!(left instanceof THREE.Mesh) || !(right instanceof THREE.Mesh)) {
-    return fallback
-  }
-
-  const leftBox = footBox(left)
-  const rightBox = footBox(right)
-  const innerEdge = Math.min(leftBox.min.x, -rightBox.max.x)
-  const shift = Math.max(0, innerEdge - PAIR_GAP_M / 2)
-  left.position.x = -shift
-  right.position.x = shift
-  return leftBox
-    .translate(new THREE.Vector3(-shift, 0, 0))
-    .union(rightBox.translate(new THREE.Vector3(shift, 0, 0)))
+function stanceShift(left: Bounds, right: Bounds): number {
+  const innerEdge = Math.min(left.min[0], -right.max[0])
+  return Math.max(0, innerEdge - PAIR_GAP_M / 2)
 }
 
-/** Stands in at the target size while the textured pair downloads. */
-function LoadingSilhouette({ scale: [x, y, z] }: { scale: FootDraw['scale'] }) {
+/** Stands in at the target size while the textured pair, its rig, and the kernel load. */
+function LoadingSilhouette({ scale }: { scale: number }) {
   return (
-    <mesh position={[0, 0.16 * y, 0.09 * z]}>
-      <boxGeometry args={[0.3 * x, 0.32 * y, 0.26 * z]} />
+    <mesh position={[0, 0.16 * scale, 0.02 * scale]}>
+      <boxGeometry args={[0.3 * scale, 0.32 * scale, 0.26 * scale]} />
       <meshStandardMaterial color="#8f7a66" roughness={1} transparent opacity={0.4} />
     </mesh>
   )
 }
 
 function FootModel({ app, draw }: FigureProps) {
-  const { object, bounds } = useModel(draw.model)
-  const pairBounds = useMemo(() => narrowStance(object, bounds), [object, bounds])
+  const scene = useModelScene(draw.model)
+  const rig = useFeetRig(draw.model)
+  const feet = useMemo(() => {
+    const left = scene.getObjectByName('LeftFootAndShin')
+    const right = scene.getObjectByName('RightFootAndShin')
+    if (!left || !right) {
+      throw new Error(`${draw.model.file} needs LeftFootAndShin and RightFootAndShin.`)
+    }
+    return { left: rigFoot(left, rig.left.rig), right: rigFoot(right, rig.right.rig) }
+  }, [scene, rig, draw.model])
+
+  // The left foot is solved to the shape; the right one mirrors its controls.
+  const solved = useMemo(() => {
+    const left = solveFoot(rig.left, draw.shape, { initial: lastControls.get(draw.id) })
+    lastControls.set(draw.id, left.controls)
+    return { controls: left.controls, left: left.bounds, right: rig.right.evaluate(left.controls).bounds }
+  }, [rig, draw.shape, draw.id])
+  useEffect(() => () => void lastControls.delete(draw.id), [draw.id])
+  const shift = stanceShift(solved.left, solved.right)
+  const pairBounds = toBox(solved.left, -shift).union(toBox(solved.right, shift))
+
+  useLayoutEffect(() => {
+    poseFoot(feet.left, rig.left.pose(solved.controls))
+    poseFoot(feet.right, rig.right.pose(solved.controls))
+    feet.left.root.position.x = -shift
+    feet.right.root.position.x = shift
+  }, [feet, rig, solved, shift])
+
   const [hovered, setHovered] = useState(false)
   const ring = useRef<THREE.Mesh>(null)
   const ringMaterial = useRef<THREE.MeshBasicMaterial>(null)
-  const scale = new THREE.Vector3(...draw.scale)
-  const size = pairBounds.getSize(new THREE.Vector3()).multiply(scale)
-  const center = pairBounds.getCenter(new THREE.Vector3()).multiply(scale)
+  const size = pairBounds.getSize(new THREE.Vector3())
+  const center = pairBounds.getCenter(new THREE.Vector3())
   const ringX = size.x / 2 + 0.04
   const ringZ = size.z / 2 + 0.04
 
@@ -88,7 +109,8 @@ function FootModel({ app, draw }: FigureProps) {
 
   return (
     <>
-      <primitive object={object} scale={[...draw.scale]} />
+      <primitive object={feet.left.root} />
+      <primitive object={feet.right.root} />
       <BlobShadow radiusX={size.x / 2 + 0.03} radiusZ={size.z / 2 + 0.03} position={[center.x, 0, center.z]} />
       {/* Invisible hit box: pointer events raycast this box instead of the textured feet. */}
       <mesh
@@ -141,7 +163,7 @@ function FootModel({ app, draw }: FigureProps) {
 function FootFigure({ app, draw }: FigureProps) {
   return (
     <group position={draw.position} rotation={[0, draw.yaw, 0]}>
-      <Suspense fallback={<LoadingSilhouette scale={draw.scale} />}>
+      <Suspense fallback={<LoadingSilhouette scale={draw.lengthScale} />}>
         <FootModel app={app} draw={draw} />
       </Suspense>
     </group>

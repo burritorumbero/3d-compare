@@ -99,3 +99,11 @@ This is Phase 3 of `.design/PARAMETRIC_PLAN.md`.
 - **Catalog.** Reference sole lengths are now 226 mm (female) and 248 mm (male).
 - **Rendering.** The app still renders feet with the interim per-axis scale. Skinning through the kernel is Phase 4.
 - **Checks.** verify:domain, verify:models, verify:kernel, lint, build and verify:ui pass.
+
+## Follow-up: rigged feet in the app (2026-10-17)
+
+This is Phase 4 of `.design/PARAMETRIC_PLAN.md`.
+
+- **How it works.** Feet are skinned meshes now. The WebAssembly kernel solves each placement's shape (foot length, toe length, ball width, instep height) to bone scales, and three.js deforms the Genesis 9 mesh with them.
+- **What you see.** Toes lengthen on their own, the forefoot widens, the arch rises, and the shin stays put.
+- **Checks.** verify:domain, verify:models, verify:kernel (including the app's skinning code), lint, build and verify:ui pass. The production build serves the kernel and the rigs.

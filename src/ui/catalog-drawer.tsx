@@ -1,11 +1,19 @@
 import type { CompareApp } from '../app/compare-app.ts'
 import { FEET_CATALOG } from '../catalog/feet.ts'
 import { HUMAN_CATALOG } from '../catalog/humans.ts'
+import type { ModelAsset } from '../domain/catalog.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { FEET_CAP } from '../domain/feet-world.ts'
 import { HEIGHT_CAP } from '../domain/height-world.ts'
+import { preloadFeetRig } from '../scene/feet/foot-rigs.ts'
 import { preloadModel } from '../scene/models.ts'
 import { FootIcon, PersonIcon, PlusIcon } from './icons.tsx'
+
+/** A pair of feet needs its GLB, its rig file, and the kernel. */
+function preloadFeet(model: ModelAsset): void {
+  preloadModel(model)
+  preloadFeetRig(model)
+}
 
 export function CatalogDrawer({
   app,
@@ -96,8 +104,8 @@ export function CatalogDrawer({
             type="button"
             className="catalog-card"
             disabled={full}
-            onPointerEnter={() => preloadModel(entry.model)}
-            onFocus={() => preloadModel(entry.model)}
+            onPointerEnter={() => preloadFeet(entry.model)}
+            onFocus={() => preloadFeet(entry.model)}
             onClick={() => {
               const result = app.placeFoot(entry.id)
               if (!result.ok) {

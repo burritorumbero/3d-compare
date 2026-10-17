@@ -8,6 +8,11 @@ export function modelUrl(asset: ModelAsset): string {
   return `${import.meta.env.BASE_URL}models/${asset.file}`
 }
 
+/** The rig file shipped next to a rigged model's GLB. */
+export function rigUrl(asset: ModelAsset): string {
+  return modelUrl(asset).replace(/\.glb$/, '.rig.json')
+}
+
 /** Starts fetching a model so a later placement does not wait on the network. */
 export function preloadModel(asset: ModelAsset): void {
   useGLTF.preload(modelUrl(asset), false, false)
@@ -38,6 +43,15 @@ function measure(source: THREE.Object3D): THREE.Box3 {
  * component. The clone carries no pointer handlers: figures put those on a
  * coarse hit box so the renderer never raycasts tens of thousands of triangles.
  */
+/**
+ * Suspends until the GLB is loaded and returns its shared scene, for callers
+ * that build their own objects from its geometry (rigged feet). Do not add the
+ * returned scene to the stage.
+ */
+export function useModelScene(asset: ModelAsset): THREE.Group {
+  return useGLTF(modelUrl(asset), false, false).scene
+}
+
 export function useModel(asset: ModelAsset): LoadedModel {
   const gltf = useGLTF(modelUrl(asset), false, false)
   return useMemo(
