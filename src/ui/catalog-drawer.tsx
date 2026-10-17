@@ -5,14 +5,14 @@ import type { ModelAsset } from '../domain/catalog.ts'
 import type { CompareDocument } from '../domain/document.ts'
 import { FEET_CAP } from '../domain/feet-world.ts'
 import { HEIGHT_CAP } from '../domain/height-world.ts'
-import { preloadFeetRig } from '../scene/feet/foot-rigs.ts'
+import { preloadRig } from '../scene/rig-cache.ts'
 import { preloadModel } from '../scene/models.ts'
 import { FootIcon, PersonIcon, PlusIcon } from './icons.tsx'
 
-/** A pair of feet needs its GLB, its rig file, and the kernel. */
-function preloadFeet(model: ModelAsset): void {
+/** A rigged model needs its GLB, its rig file, and the kernel. */
+function preloadRigged(model: ModelAsset): void {
   preloadModel(model)
-  preloadFeetRig(model)
+  preloadRig(model)
 }
 
 export function CatalogDrawer({
@@ -46,8 +46,8 @@ export function CatalogDrawer({
               type="button"
               className="catalog-card"
               disabled={full}
-              onPointerEnter={() => preloadModel(entry.model)}
-              onFocus={() => preloadModel(entry.model)}
+              onPointerEnter={() => preloadRigged(entry.model)}
+              onFocus={() => preloadRigged(entry.model)}
               onClick={() => {
                 const result = app.placeHuman(entry.id)
                 if (!result.ok) {
@@ -104,8 +104,8 @@ export function CatalogDrawer({
             type="button"
             className="catalog-card"
             disabled={full}
-            onPointerEnter={() => preloadFeet(entry.model)}
-            onFocus={() => preloadFeet(entry.model)}
+            onPointerEnter={() => preloadRigged(entry.model)}
+            onFocus={() => preloadRigged(entry.model)}
             onClick={() => {
               const result = app.placeFoot(entry.id)
               if (!result.ok) {

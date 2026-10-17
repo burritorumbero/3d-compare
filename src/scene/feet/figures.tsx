@@ -7,11 +7,11 @@ import type { FeetWorld } from '../../domain/feet-world.ts'
 import type { ShoeSystem } from '../../domain/shoe-charts.ts'
 import { BlobShadow } from '../blob-shadow.tsx'
 import { toFootDraw, type FootDraw } from '../draw.ts'
-import { solveFoot } from '../../kernel/foot.ts'
 import type { Bounds } from '../../kernel/index.ts'
 import { useModelScene } from '../models.ts'
-import { useFeetRig } from './foot-rigs.ts'
-import { poseFoot, rigFoot } from './rigged-foot.ts'
+import { assertFootRig, solveFoot } from '../../kernel/foot.ts'
+import { solverFor, useRigSolvers } from '../rig-cache.ts'
+import { applyPose, rigNode } from '../rigged.ts'
 
 /** Gap between the inner edges of the two feet once the authored stance is narrowed. */
 const PAIR_GAP_M = 0.05
@@ -56,14 +56,19 @@ function LoadingSilhouette({ scale }: { scale: number }) {
 
 function FootModel({ app, draw }: FigureProps) {
   const scene = useModelScene(draw.model)
-  const rig = useFeetRig(draw.model)
+  const solvers = useRigSolvers(draw.model)
+  const rig = useMemo(() => {
+    const pair = { left: solverFor(solvers, 'LeftFootAndShin'), right: solverFor(solvers, 'RightFootAndShin') }
+    assertFootRig(pair.left)
+    return pair
+  }, [solvers])
   const feet = useMemo(() => {
     const left = scene.getObjectByName('LeftFootAndShin')
     const right = scene.getObjectByName('RightFootAndShin')
     if (!left || !right) {
       throw new Error(`${draw.model.file} needs LeftFootAndShin and RightFootAndShin.`)
     }
-    return { left: rigFoot(left, rig.left.rig), right: rigFoot(right, rig.right.rig) }
+    return { left: rigNode(left, rig.left.rig), right: rigNode(right, rig.right.rig) }
   }, [scene, rig, draw.model])
 
   // The left foot is solved to the shape; the right one mirrors its controls.
@@ -77,8 +82,8 @@ function FootModel({ app, draw }: FigureProps) {
   const pairBounds = toBox(solved.left, -shift).union(toBox(solved.right, shift))
 
   useLayoutEffect(() => {
-    poseFoot(feet.left, rig.left.pose(solved.controls))
-    poseFoot(feet.right, rig.right.pose(solved.controls))
+    applyPose(feet.left, rig.left.pose(solved.controls))
+    applyPose(feet.right, rig.right.pose(solved.controls))
     feet.left.root.position.x = -shift
     feet.right.root.position.x = shift
   }, [feet, rig, solved, shift])

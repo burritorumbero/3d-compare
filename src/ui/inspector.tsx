@@ -190,7 +190,10 @@ function HeightInspector({
           Update height
         </button>
       </form>
-      <p className="measurement-note">Uniform scale keeps this model's proportions intact.</p>
+      <p className="measurement-note">
+        Proportions follow adult averages for this height (ANSUR II): taller people get relatively
+        longer legs and smaller heads.
+      </p>
     </section>
   )
 }

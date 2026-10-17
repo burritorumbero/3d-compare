@@ -241,7 +241,8 @@ const giantLineup = humanLineupX(giants.getState().height.placements)
 const spans = giants.getState().height.placements
   .map((placement) => {
     const entry = HUMAN_CATALOG.find((candidate) => candidate.id === placement.catalogId)
-    const half = (entry.footprintWidthMm / 2000) * (placement.heightMm / entry.referenceHeightMm)
+    const growth = averageLandmarks(entry.sex, placement.heightMm).armLength / averageLandmarks(entry.sex, entry.referenceHeightMm).armLength
+    const half = (entry.footprintWidthMm / 2000) * growth
     const x = giantLineup.get(placement.id)
     return [x - half, x + half]
   })

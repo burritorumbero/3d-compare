@@ -55,15 +55,24 @@ A share link carries the scene in its query string, for example `?mode=height&un
 
 The models in `public/models` are glTF binaries in meters, Y up, facing +Z, with embedded textures.
 
-- **People.** The six people are CC0 static meshes adapted from MakeHuman Community assets.
+- **People.** The six people are built from Daz 3D Genesis 9 characters (Laura, Amala, Kat, Ty, Fabrice, Matt) with clothing, hair, eyes, lashes and brows. Each carries `_SKIN_INDEX`/`_SKIN_WEIGHT` segment weights and `_LANDMARK` ids, and a `*.rig.json` ships next to it. The GLBs use meshopt-compressed geometry and WebP textures (5–6.4 MB each).
 - **Feet.** The two pairs of feet are built from the Daz 3D Genesis 9 characters Laura and Matt. Each foot carries `_DEFORM_WEIGHTS` (shin, foot and toes, derived from Genesis 9's bone weights), and a `*.rig.json` ships next to each pair for the parametric kernel.
 - **Records.** `public/models/ASSET_LICENSES.md` records provenance and licensing, and `public/models/manifest.json` describes each file.
+
+### Rebuilding the people
+
+`npm run assets:people [model id ...]` rebuilds the people from local Daz libraries (`DAZ_LIBRARY`, plus `DAZ_EXTRA_LIBRARIES` for marketplace content). It runs `tools/assets/build_people.py` headless in Blender, which:
+- imports the character, anatomy, clothing and hair, and applies the body and head shape;
+- fits clothing and hair to that shape, thins hair to a card budget, weights segments and marks landmarks;
+- converts the materials, including the eyes, lashes, brows and hair colors from the Daz presets.
+
+It then optimizes the result for the web (glTF-Transform: 8-bit skin attributes, WebP, meshopt) and writes the rig file from the shipped GLB.
 
 ### Rebuilding the feet
 
 `npm run assets:feet` rebuilds the feet from a local Daz library. It needs Blender 4.2 or newer with the Diffeomorphic DAZ importer. Set `BLENDER_BIN` and `DAZ_LIBRARY` if they aren't at the macOS defaults. The script runs `tools/assets/build_feet.py` headless, then writes the rig files.
 
-Scale is exact by construction. Each human is scaled uniformly from the stature of its authored mesh, measured from sole to skull top with hair excluded. Each pair of feet is rigged: for every change of shoe size, toe length, width or thickness, the WebAssembly kernel solves the bone scales that make the foot measure exactly those dimensions, and three.js skins the mesh with them. Toes, forefoot and arch deform separately, and the shin stays fixed. The checks prove the result within 0.1 mm, both in the kernel and through the app's own skinning code. Parametric proportions for people are planned in `.design/PARAMETRIC_PLAN.md`. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
+Scale is exact by construction. Each person is rigged: for any height from 90 cm to 10 ft, the WebAssembly kernel solves the segment bone scales that put the ankles, knees, crotch, shoulders, neck, ears and crown at the ANSUR II proportions for that height, along with the shoulder and hip breadth, foot length and arm length. Stature lands exactly, measured sole to crown with hair excluded. Taller people get relatively longer legs and smaller heads, as real adults do. Each pair of feet is rigged: for every change of shoe size, toe length, width or thickness, the WebAssembly kernel solves the bone scales that make the foot measure exactly those dimensions, and three.js skins the mesh with them. Toes, forefoot and arch deform separately, and the shin stays fixed. The checks prove the result within 0.1 mm, both in the kernel and through the app's own skinning code. `src/catalog` holds those reference sizes and `npm run verify:models` re-measures the GLB files to catch drift.
 
 Models load on demand and are cached per file, so ten copies of one person download it once. Each human decodes to roughly 40 MB of GPU textures, so a full lineup of all six people uses about 240 MB of graphics memory.
 

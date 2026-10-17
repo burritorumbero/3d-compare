@@ -1,16 +1,18 @@
 import { footEntry } from '../catalog/feet.ts'
 import { humanEntry } from '../catalog/humans.ts'
 import { humanDisplayName } from '../catalog/names.ts'
-import type { FootCatalogId, HumanCatalogId, ModelAsset } from '../domain/catalog.ts'
+import type { FootCatalogId, HumanCatalogId, ModelAsset, Sex } from '../domain/catalog.ts'
 import type { PlacedFoot } from '../domain/feet-world.ts'
 import type { PlacedHuman } from '../domain/height-world.ts'
 import type { PlacementId } from '../domain/ids.ts'
 import type { FootShape } from '../domain/foot-shape.ts'
+import { averageLandmarks } from '../domain/stature.ts'
 import { HUMAN_GAP_M } from '../domain/layout.ts'
 import {
   footScale,
   formatHeight,
   heightScale,
+  type HeightMm,
   type LengthUnit,
 } from '../domain/measure.ts'
 import { formatShoe, type ShoeSystem } from '../domain/shoe-charts.ts'
@@ -19,7 +21,11 @@ export type HumanDraw = {
   id: PlacementId
   catalogId: HumanCatalogId
   model: ModelAsset
+  sex: Sex
+  /** The height the kernel solves the rigged person to. */
+  heightMm: HeightMm
   referenceHeightM: number
+  /** Height over the authored stature: sizes the stand-in while the person loads. */
   scale: number
   position: readonly [number, 0, number]
   yaw: number
@@ -42,10 +48,16 @@ export type FootDraw = {
   label: string
 }
 
-/** Arm-span footprint of a person at their set height, in meters. */
+/**
+ * Arm-span footprint of a person at their set height, in meters. The A-pose span
+ * is mostly arms, and arms grow a little faster than stature (ANSUR II), so the
+ * footprint follows the arm-length ratio rather than the height ratio.
+ */
 function humanFootprintM(placement: PlacedHuman): number {
   const entry = humanEntry(placement.catalogId)
-  return (entry.footprintWidthMm / 1000) * heightScale(entry.referenceHeightMm, placement.heightMm)
+  const growth =
+    averageLandmarks(entry.sex, placement.heightMm).armLength / averageLandmarks(entry.sex, entry.referenceHeightMm).armLength
+  return (entry.footprintWidthMm / 1000) * growth
 }
 
 /**
@@ -88,6 +100,8 @@ export function toHumanDraw(
     id: placement.id,
     catalogId: entry.id,
     model: entry.model,
+    sex: entry.sex,
+    heightMm: placement.heightMm,
     referenceHeightM: entry.referenceHeightMm / 1000,
     scale: heightScale(entry.referenceHeightMm, placement.heightMm),
     position: [lineupX, 0, placement.pose.z],
