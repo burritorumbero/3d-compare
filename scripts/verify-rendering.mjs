@@ -1,52 +1,67 @@
+// Browser smoke/visual regression captures, usable on Vite dev OR preview.
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
+import sharp from 'sharp'
+import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { launchChrome } from './browser.mjs'
 
 const baseUrl = process.env.APP_URL ?? 'http://127.0.0.1:43123'
-const artifactDir = process.env.ARTIFACT_DIR ?? '/tmp/3d-compare-fix'
-
+const artifactDir = process.env.ARTIFACT_DIR ?? '/tmp/3d-compare-rendering'
 await mkdir(artifactDir, { recursive: true })
-
 const browser = await launchChrome()
-
 const page = await browser.newPage({ viewport: { width: 1440, height: 960 } })
+const errors = []
+page.on('pageerror', (error) => errors.push(error.message))
+page.on('console', (message) => {
+  if (message.type() === 'error' && !/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(message.location().url)) {
+    errors.push(message.text())
+  }
+})
 
 try {
-  await page.addInitScript(() => localStorage.clear())
-  await page.goto(baseUrl, { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Add Ari', exact: true }).click()
-  await page.locator('.catalog-card').filter({ hasText: 'Luca' }).click()
-  await page.locator('.scene-label').nth(1).waitFor({ state: 'visible' })
-  await page.waitForTimeout(500)
-
-  const screenshot = await page.locator('.canvas-shell').screenshot()
-  const screenshotPath = `${artifactDir}/height-shell.png`
-  await writeFile(screenshotPath, screenshot)
-
-  const meanRgb = await page.evaluate(async (base64) => {
-    const image = new Image()
-    image.src = `data:image/png;base64,${base64}`
-    await image.decode()
-
-    const canvas = document.createElement('canvas')
-    canvas.width = image.naturalWidth
-    canvas.height = image.naturalHeight
-    const context = canvas.getContext('2d', { willReadFrequently: true })
-    if (!context) {
-      throw new Error('Could not create a 2D context for screenshot analysis.')
+  const scenarios = [
+    { name: 'people', query: `mode=height&h=${HUMAN_CATALOG.map((entry) => `${entry.id}:${entry.referenceHeightMm}`).join(',')}` },
+    { name: 'people-10ft', query: `mode=height&h=${HUMAN_CATALOG.map((entry) => `${entry.id}:3048`).join(',')}` },
+    { name: 'female-us20', query: 'mode=feet&shoe=US&f=foot-female:344', frame: true },
+    { name: 'male-us20', query: 'mode=feet&shoe=US&f=foot-male:357', frame: true },
+    { name: 'female-small', query: 'mode=feet&shoe=US&f=foot-female:208', frame: true },
+    { name: 'male-eu58', query: 'mode=feet&shoe=EU&f=foot-male:376', frame: true },
+  ]
+  for (const scenario of scenarios) {
+    await page.goto(`${baseUrl}/?${scenario.query}`, { waitUntil: 'networkidle' })
+    await page.locator('.lineup-select').first().evaluate((button) => button.click())
+    await page.locator('.scene-label').waitFor({ state: 'attached', timeout: 90_000 })
+    await page.locator('.stage-status[data-loading="false"]').waitFor({ state: 'attached', timeout: 90_000 })
+    // The selected label proves only ONE model is ready. Select each person
+    // before a lineup capture so slow meshopt decodes cannot leave stand-ins.
+    if (scenario.name.startsWith('people')) {
+      for (let index = 0; index < HUMAN_CATALOG.length; index += 1) {
+        await page.locator('.lineup-select').nth(index).evaluate((button) => button.click())
+        await page.waitForFunction((name) => document.querySelector('.scene-label')?.textContent?.startsWith(`${name} ·`), HUMAN_CATALOG[index].label)
+      }
     }
-    context.drawImage(image, 0, 0)
-
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
-    let total = 0
-    for (let index = 0; index < pixels.length; index += 4) {
-      total += pixels[index] + pixels[index + 1] + pixels[index + 2]
-    }
-    return total / (pixels.length / 4) / 3
-  }, screenshot.toString('base64'))
-
-  assert.ok(meanRgb > 40, `Composited stage mean RGB was ${meanRgb.toFixed(2)}.`)
-  console.log(`Rendering verification passed. Mean RGB: ${meanRgb.toFixed(2)}. Screenshot: ${screenshotPath}`)
+    if (scenario.frame) await page.locator('button[title="Frame selection"]').evaluate((button) => button.click())
+    // Let camera damping and texture uploads settle before capturing.
+    await page.waitForTimeout(700)
+    // Flush a compositor frame first. Software WebGL can otherwise return a
+    // stale drawing buffer even after React has mounted the ready label.
+    await page.screenshot({ path: `${artifactDir}/${scenario.name}-ui.png` })
+    const dataUrl = await page.locator('#compare-stage canvas').evaluate((canvas) => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        canvas.getContext('webgl2').finish()
+        resolve(canvas.toDataURL('image/png'))
+      }))
+    }))
+    const pixels = Buffer.from(dataUrl.split(',')[1], 'base64')
+    const stats = await sharp(pixels).stats()
+    const channels = stats.channels.slice(0, 3)
+    assert.ok(channels.reduce((sum, channel) => sum + channel.mean, 0) / 3 > 40, `${scenario.name}: visible stage`)
+    assert.ok(channels.some((channel) => channel.max - channel.min > 100), `${scenario.name}: visible geometry`)
+    await writeFile(`${artifactDir}/${scenario.name}-webgl.png`, pixels)
+    assert.deepEqual(errors, [], `${scenario.name}: no browser errors`)
+    console.log(`Rendered ${scenario.name}`)
+  }
+  console.log(`Rendering verification passed. Captures: ${artifactDir}`)
 } finally {
   await browser.close()
 }

@@ -20,8 +20,11 @@
     "verify:models": "node --experimental-strip-types scripts/verify-models.mjs",
     "preverify:kernel": "node scripts/check-node.mjs && node scripts/build-kernel.mjs",
     "verify:kernel": "cd kernel && cargo test --quiet && cd .. && node --experimental-strip-types scripts/verify-kernel.mjs",
-    "verify:rendering": "node scripts/verify-rendering.mjs",
+    "preverify:rendering": "node scripts/check-node.mjs",
+    "verify:rendering": "node --experimental-strip-types scripts/verify-rendering.mjs",
     "verify:ui": "node scripts/verify-ui.mjs",
+    "preverify:budgets": "node scripts/check-node.mjs",
+    "verify:budgets": "node --experimental-strip-types scripts/verify-budgets.mjs",
     "build:kernel": "node scripts/build-kernel.mjs",
     "assets:feet": "node scripts/build-feet-assets.mjs",
     "assets:people": "node scripts/build-people-assets.mjs"
