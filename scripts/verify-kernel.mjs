@@ -8,19 +8,21 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as THREE from 'three'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
+import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
 import { footDimensionRange } from '../src/domain/foot-shape.ts'
 import { averageLandmarks, statureTargets } from '../src/domain/stature.ts'
 import { assertFootRig, footTargets, solveFoot } from '../src/kernel/foot.ts'
 import { RigSolver, loadKernel } from '../src/kernel/index.ts'
-import { poseFoot, rigFoot } from '../src/scene/feet/rigged-foot.ts'
+import { applyPose, rigNode } from '../src/scene/rigged.ts'
 import { meshAttribute, meshPositions, readGlb } from './glb.mjs'
+import { readModel } from './model-io.mjs'
 
 const MAX_ERROR_MM = 0.1
 await loadKernel(readFileSync(fileURLToPath(new URL('../src/kernel/pkg/kernel_bg.wasm', import.meta.url))))
 
 /**
  * Deforms the rig's sample vertices with the app's own skinning code: the foot
- * is rigged and posed by src/scene/feet/rigged-foot.ts and each vertex goes
+ * is rigged and posed by src/scene/rigged.ts and each vertex goes
  * through three.js SkinnedMesh.applyBoneTransform, the CPU twin of the shader.
  */
 function skinWithApp(glb, rig, pose) {
@@ -29,8 +31,8 @@ function skinWithApp(glb, rig, pose) {
   geometry.setAttribute('_deform_weights', new THREE.Float32BufferAttribute(meshAttribute(glb, rig.mesh, '_DEFORM_WEIGHTS').flat(), 3))
   const node = new THREE.Mesh(geometry)
   node.name = rig.mesh
-  const foot = rigFoot(node, rig)
-  poseFoot(foot, pose)
+  const foot = rigNode(node, rig)
+  applyPose(foot, pose)
   // Placement moves the root; skinning must follow it exactly.
   foot.root.position.set(0.37, 0, -0.21)
   foot.root.updateMatrixWorld(true)
@@ -265,8 +267,78 @@ for (const sex of ['female', 'male']) {
   solver.dispose()
 }
 
+// Shipped people: each rig matches its GLB, every stature from 0.9 to 3.05 m
+// solves to the ANSUR targets within 0.1 mm with soles on the floor, and the
+// app's own skinning (rigNode + applyPose) puts every landmark where the kernel did.
+let peopleSolves = 0
+let peopleWorst = 0
+for (const entry of HUMAN_CATALOG) {
+  const path = fileURLToPath(new URL(`../public/models/${entry.model.file}`, import.meta.url))
+  const model = await readModel(path)
+  const rigFile = JSON.parse(readFileSync(path.replace(/\.glb$/, '.rig.json'), 'utf8'))
+  assert.equal(rigFile.version, 1)
+  assert.equal(rigFile.rigs.length, 1)
+  const rig = rigFile.rigs[0]
+  const meshCache = new Map()
+  const meshData = (name) => {
+    if (!meshCache.has(name)) {
+      meshCache.set(name, { positions: model.positions(name), weights: model.attribute(name, '_SKIN_WEIGHT'), indices: model.attribute(name, '_SKIN_INDEX') })
+    }
+    return meshCache.get(name)
+  }
+  rig.vertices.source.forEach((source, local) => {
+    const data = meshData(rig.vertices.sourceMeshes[local])
+    for (let axis = 0; axis < 3; axis += 1) {
+      assert.ok(Math.abs(data.positions[source][axis] - rig.vertices.positions[local * 3 + axis]) < 2e-6, `${entry.id} rig vertex ${local} matches the GLB`)
+    }
+    const total = rig.vertices.skinWeights.slice(local * 4, local * 4 + 4).reduce((sum, value) => sum + value, 0)
+    assert.ok(Math.abs(total - 1) < 1e-5, `${entry.id} rig vertex ${local} weights sum to 1`)
+  })
+
+  const solver = new RigSolver(rig)
+  const rest = solver.evaluate()
+  const authored = Object.fromEntries(Object.entries(rest.measures).map(([name, value]) => [name, value * 1000]))
+  assert.ok(Math.abs(authored.stature - entry.referenceHeightMm) <= 3, `${entry.id}: rig stature matches the catalog`)
+  for (let stature = 900; stature <= 3048; stature += 113) {
+    const targets = statureTargets(entry.sex, authored, stature)
+    const solution = solver.solve(Object.fromEntries(Object.entries(targets).map(([name, mm]) => [name, mm / 1000])))
+    peopleSolves += 1
+    const errorMm = solution.maxError * 1000
+    peopleWorst = Math.max(peopleWorst, errorMm)
+    assert.ok(errorMm <= MAX_ERROR_MM, `${entry.id} at ${stature} mm: off by ${errorMm.toFixed(3)} mm`)
+    assert.ok(solution.bounds.min[1] > -0.0005, `${entry.id} at ${stature} mm: nothing sinks below the floor (${(solution.bounds.min[1] * 1000).toFixed(1)} mm)`)
+    assert.ok(Math.abs(solution.measures.stature * 1000 - stature) < MAX_ERROR_MM, `${entry.id} at ${stature} mm: stature lands exactly`)
+  }
+
+  // The app path: skin the body with rigNode at 10 ft and measure its landmarks.
+  const body = meshData('Body')
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(body.positions.flat(), 3))
+  geometry.setAttribute('_skin_index', new THREE.Float32BufferAttribute(body.indices.flat(), 4))
+  geometry.setAttribute('_skin_weight', new THREE.Float32BufferAttribute(body.weights.flat(), 4))
+  const node = new THREE.Mesh(geometry)
+  node.name = 'Body'
+  const person = rigNode(node, rig)
+  const tall = statureTargets(entry.sex, authored, 3048)
+  const solution = solver.solve(Object.fromEntries(Object.entries(tall).map(([name, mm]) => [name, mm / 1000])))
+  applyPose(person, solver.pose(solution.controls))
+  person.root.updateMatrixWorld(true)
+  const [skinned] = person.meshes
+  const points = rig.vertices.source.map((source, local) =>
+    rig.vertices.sourceMeshes[local] === 'Body'
+      ? skinned.applyBoneTransform(source, new THREE.Vector3().fromBufferAttribute(geometry.getAttribute('position'), source))
+      : new THREE.Vector3(Number.NaN, Number.NaN, Number.NaN),
+  )
+  const app = measureWithThree(rig, points)
+  for (const [name, target] of Object.entries(tall)) {
+    assert.ok(Math.abs(app[name] * 1000 - target) < MAX_ERROR_MM, `${entry.id}: the app's skinned body puts ${name} at ${(app[name] * 1000).toFixed(2)} mm, wanted ${target.toFixed(2)} mm`)
+  }
+  solver.dispose()
+}
+
 console.log(
   `Kernel verification passed: shipped rigs match their GLBs, ${solves} foot solves (left and right agree), worst error ${worst.toFixed(4)} mm, ` +
     `${(elapsed / solves).toFixed(2)} ms per solve, the app's three.js skinning agrees; ` +
-    `${bodySolves} body-column stature solves (0.9 to 3.05 m), worst error ${bodyWorst.toFixed(4)} mm, three.js bones agree.`,
+    `${bodySolves} body-column stature solves (0.9 to 3.05 m), worst error ${bodyWorst.toFixed(4)} mm, three.js bones agree; ` +
+    `${peopleSolves} solves on the shipped people, worst error ${peopleWorst.toFixed(4)} mm, the app's skinning agrees at 10 ft.`,
 )
