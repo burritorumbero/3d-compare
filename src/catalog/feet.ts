@@ -7,8 +7,9 @@ import { footLengthMm } from '../domain/measure.ts'
 
 const ALIGNMENT: FigureAlignment = { up: 'y', forward: 'z', soleY: 0 }
 
-// Each GLB holds a left and a right foot, cut and capped at mid-shin. Reference
-// lengths are the heel-to-toe extent of the sole vertices in each file.
+// Each GLB holds a left and a right foot, cut and capped at mid-shin, built from a
+// Daz Genesis 9 character by tools/assets/build_feet.py (female: Laura, male: Matt).
+// Reference lengths are the heel-to-toe extent of the sole vertices in each file.
 // scripts/verify-models.mjs re-measures the files and fails on drift.
 export const FEET_CATALOG: readonly FootCatalogEntry[] = [
   {
@@ -17,9 +18,9 @@ export const FEET_CATALOG: readonly FootCatalogEntry[] = [
     subtitle: 'Tan skin · pair to mid-shin',
     sex: 'female',
     skin: 'tan',
-    model: { file: 'female-feet-shins.glb', triangles: 28000 },
+    model: { file: 'female-feet-shins.glb', triangles: 40544 },
     swatch: { skinHex: '#c7936f', outfitHex: '#a65d4e' },
-    referenceFootLengthMm: footLengthMm(220),
+    referenceFootLengthMm: footLengthMm(226),
     defaultFootLengthMm: footLengthMm(242),
     alignment: ALIGNMENT,
   },
@@ -29,9 +30,9 @@ export const FEET_CATALOG: readonly FootCatalogEntry[] = [
     subtitle: 'Pale skin · pair to mid-shin',
     sex: 'male',
     skin: 'pale',
-    model: { file: 'male-feet-shins.glb', triangles: 28000 },
+    model: { file: 'male-feet-shins.glb', triangles: 41288 },
     swatch: { skinHex: '#e6c2a6', outfitHex: '#355863' },
-    referenceFootLengthMm: footLengthMm(268),
+    referenceFootLengthMm: footLengthMm(248),
     defaultFootLengthMm: footLengthMm(272),
     alignment: ALIGNMENT,
   },

@@ -1,8 +1,8 @@
-// Proves the WebAssembly kernel on real foot geometry: across the full range of
-// foot shapes the solved rig measures what was asked within 0.1 mm, soles stay
-// on the floor, the shin is untouched, and three.js skinning with the kernel's
-// bone scales reproduces the kernel's measurements (so the GPU draws what the
-// kernel measured).
+// Proves the WebAssembly kernel on the shipped feet rigs: each rig matches its
+// GLB, and across the full range of foot shapes the solved rig measures what was
+// asked within 0.1 mm, soles stay on the floor, the shin is untouched, left and
+// right feet solve alike, and three.js skinning with the kernel's bone scales
+// reproduces the kernel's measurements (so the GPU draws what the kernel measured).
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -11,8 +11,7 @@ import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { footDimensionRange } from '../src/domain/foot-shape.ts'
 import { assertFootRig, footTargets, solveFoot } from '../src/kernel/foot.ts'
 import { RigSolver, loadKernel } from '../src/kernel/index.ts'
-import { readGlb } from './glb.mjs'
-import { proceduralFootRig } from './procedural-foot-rig.mjs'
+import { meshAttribute, meshPositions, readGlb } from './glb.mjs'
 
 const MAX_ERROR_MM = 0.1
 await loadKernel(readFileSync(fileURLToPath(new URL('../src/kernel/pkg/kernel_bg.wasm', import.meta.url))))
@@ -69,9 +68,30 @@ let worst = 0
 let elapsed = 0
 for (const entry of FEET_CATALOG) {
   const glb = readGlb(fileURLToPath(new URL(`../public/models/${entry.model.file}`, import.meta.url)))
-  const rig = proceduralFootRig(glb, 'LeftFootAndShin')
+  const rigFile = JSON.parse(
+    readFileSync(fileURLToPath(new URL(`../public/models/${entry.model.file.replace(/\.glb$/, '.rig.json')}`, import.meta.url)), 'utf8'),
+  )
+  assert.equal(rigFile.version, 1)
+  assert.deepEqual(rigFile.rigs.map((rig) => rig.mesh), ['LeftFootAndShin', 'RightFootAndShin'])
+  for (const rig of rigFile.rigs) {
+    // The rig samples the GLB: every sampled vertex sits where the GLB has it, with the GLB's weights.
+    const positions = meshPositions(glb, rig.mesh)
+    const weights = meshAttribute(glb, rig.mesh, '_DEFORM_WEIGHTS')
+    rig.vertices.source.forEach((source, local) => {
+      for (let axis = 0; axis < 3; axis += 1) {
+        assert.ok(Math.abs(positions[source][axis] - rig.vertices.positions[local * 3 + axis]) < 2e-6, `${rig.mesh} vertex ${source} matches the GLB`)
+      }
+      assert.ok(Math.abs(weights[source][2] - rig.vertices.skinWeights[local * 4 + 2]) < 1e-5, `${rig.mesh} vertex ${source} toes weight matches the GLB`)
+    })
+    for (const vertexWeights of weights) {
+      assert.ok(Math.abs(vertexWeights[0] + vertexWeights[1] + vertexWeights[2] - 1) < 1e-4, `${rig.mesh} deform weights sum to 1`)
+    }
+  }
+  const rig = rigFile.rigs[0]
   const solver = new RigSolver(rig)
+  const mirror = new RigSolver(rigFile.rigs[1])
   assertFootRig(solver)
+  assertFootRig(mirror)
 
   const rest = solver.evaluate()
   assert.ok(
@@ -114,6 +134,11 @@ for (const entry of FEET_CATALOG) {
             assert.ok(Number.isFinite(value), `${label}: bounds are finite`)
           }
 
+          const mirrored = solveFoot(mirror, shape)
+          for (const [name, value] of Object.entries(solution.controls)) {
+            assert.ok(Math.abs(mirrored.controls[name] - value) < 0.002, `${label}: right foot ${name} matches the left`)
+          }
+
           // A slider drag warm-starts from the last solution and converges in a step or two.
           const nudged = { ...shape, ballWidthMm: shape.ballWidthMm + 1 }
           const warm = solveFoot(solver, nudged, { initial: solution.controls })
@@ -138,9 +163,10 @@ for (const entry of FEET_CATALOG) {
   assert.throws(() => solver.solve({ heelHeight: 0.1 }), /no measure named heelHeight/)
   assert.throws(() => solver.solve({ length: Number.POSITIVE_INFINITY }), /finite/)
   solver.dispose()
+  mirror.dispose()
 }
 
 console.log(
-  `Kernel verification passed: ${solves} foot solves, worst error ${worst.toFixed(4)} mm, ` +
+  `Kernel verification passed: shipped rigs match their GLBs, ${solves} foot solves (left and right agree), worst error ${worst.toFixed(4)} mm, ` +
     `${(elapsed / solves).toFixed(2)} ms per solve, three.js skinning agrees.`,
 )

@@ -153,18 +153,20 @@
     "color": "#bd936f",
     "url": "/models/female-feet-shins.glb",
     "preview": "/previews/female-feet-shins.png",
-    "bytes": 1448176,
-    "triangles": 28000,
+    "bytes": 2411084,
+    "triangles": 40544,
     "meshCount": 2,
     "dimensionsMeters": [
-      0.4507,
-      0.309,
-      0.2476
+      0.3583,
+      0.2945,
+      0.2506
     ],
     "rigged": false,
     "animated": false,
     "format": "glTF 2.0 / GLB",
-    "license": "CC0-1.0"
+    "license": "LicenseRef-Daz3D-EULA",
+    "source": "Daz 3D Genesis 9 \u00b7 Laura for Genesis 9",
+    "rig": "/models/female-feet-shins.rig.json"
   },
   {
     "id": "male-feet-shins",
@@ -176,17 +178,19 @@
     "color": "#d9b6a3",
     "url": "/models/male-feet-shins.glb",
     "preview": "/previews/male-feet-shins.png",
-    "bytes": 1544880,
-    "triangles": 28000,
+    "bytes": 2312084,
+    "triangles": 41288,
     "meshCount": 2,
     "dimensionsMeters": [
-      0.5174,
-      0.3292,
-      0.2798
+      0.3789,
+      0.3231,
+      0.2624
     ],
     "rigged": false,
     "animated": false,
     "format": "glTF 2.0 / GLB",
-    "license": "CC0-1.0"
+    "license": "LicenseRef-Daz3D-EULA",
+    "source": "Daz 3D Genesis 9 \u00b7 Matt for Genesis 9",
+    "rig": "/models/male-feet-shins.rig.json"
   }
 ]

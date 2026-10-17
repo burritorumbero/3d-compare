@@ -1,11 +1,11 @@
 // Proves the catalog's reference sizes against the shipped GLB files, because
 // "true relative scale" depends on scaling each model from its authored size.
 import assert from 'node:assert/strict'
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { FEET_CATALOG } from '../src/catalog/feet.ts'
 import { HUMAN_CATALOG } from '../src/catalog/humans.ts'
-import { bounds, meshPositions, readGlb } from './glb.mjs'
+import { bounds, meshAttribute, meshPositions, readGlb } from './glb.mjs'
 
 const modelsDir = new URL('../public/models/', import.meta.url)
 const manifest = JSON.parse(readFileSync(new URL('manifest.json', modelsDir), 'utf8'))
@@ -37,7 +37,7 @@ function openModel(entry) {
   const whole = bounds(glb.json.meshes.flatMap((mesh) => meshPositions(glb, mesh.name)))
   assert.ok(Math.abs(whole.min[1]) < 0.005, `${entry.model.file} rests its soles on y = 0`)
   assert.ok(Math.abs(whole.min[0] + whole.max[0]) < 0.01, `${entry.model.file} is centered on x = 0`)
-  assert.ok(whole.max[2] > 0.15 && whole.max[2] < 0.5, `${entry.model.file} faces +Z`)
+  assert.ok(whole.max[2] > -whole.min[2] && whole.max[2] < 0.5, `${entry.model.file} faces +Z`)
   return glb
 }
 
@@ -58,11 +58,16 @@ for (const entry of HUMAN_CATALOG) {
 
 for (const entry of FEET_CATALOG) {
   const glb = openModel(entry)
+  // Rigged feet: a rig file ships next to the GLB (verify:kernel proves it against the mesh).
+  assert.ok(existsSync(fileURLToPath(new URL(entry.model.file.replace(/\.glb$/, '.rig.json'), modelsDir))), `${entry.model.file} has a rig file`)
   for (const meshName of ['LeftFootAndShin', 'RightFootAndShin']) {
+    const weights = meshAttribute(glb, meshName, '_DEFORM_WEIGHTS')
+    assert.equal(weights.length, meshPositions(glb, meshName).length, `${entry.id}: ${meshName} has deform weights on every vertex`)
     // The shin leans back past the heel, so measure the sole slab only.
     const sole = meshPositions(glb, meshName).filter((point) => point[1] < 0.03)
     const soleBounds = bounds(sole)
     const lengthMm = (soleBounds.max[2] - soleBounds.min[2]) * 1000
+    assert.ok(soleBounds.max[2] > -soleBounds.min[2], `${entry.id}: ${meshName} toes point toward +Z`)
     assert.ok(
       Math.abs(lengthMm - entry.referenceFootLengthMm) <= FOOT_TOLERANCE_MM,
       `${entry.id}: ${meshName} sole length ${lengthMm.toFixed(1)} mm vs catalog ${entry.referenceFootLengthMm} mm`,
